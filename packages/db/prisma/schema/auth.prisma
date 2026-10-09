@@ -1,0 +1,74 @@
+model User {
+  id                    String    @id(map: "user_pk")
+  name                  String
+  email                 String
+  emailVerified         Boolean   @default(false) @map("email_verified")
+  image                 String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  role                  String?
+  banned                Boolean?  @default(false)
+  banReason             String?   @map("ban_reason")
+  banExpires            DateTime? @map("ban_expires")
+  /// Set once the user finishes onboarding. Declared as a better-auth
+  /// additionalField with `input: false`, so it rides on the session but a
+  /// client cannot set it for itself.
+  onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email], map: "user_email_idx")
+  @@map("user")
+}
+
+model Session {
+  id             String   @id(map: "session_pk")
+  expiresAt      DateTime @map("expires_at")
+  token          String
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  userId         String   @map("user_id")
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "session_user_fk")
+  impersonatedBy String?  @map("impersonated_by")
+
+  @@unique([token], map: "session_token_idx")
+  @@index([userId], map: "session_user_id_idx")
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id(map: "account_pk")
+  accountId             String    @map("account_id")
+  providerId            String    @map("provider_id")
+  userId                String    @map("user_id")
+  accessToken           String?   @map("access_token")
+  refreshToken          String?   @map("refresh_token")
+  idToken               String?   @map("id_token")
+  accessTokenExpiresAt  DateTime? @map("access_token_expires_at")
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at")
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "account_user_fk")
+
+  @@index([userId], map: "account_user_idx")
+  @@index(providerId, map: "account_provider_idx")
+  @@index([accountId], map: "account_account_idx")
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id(map: "verification_pk")
+  identifier String
+  value      String
+  expiresAt  DateTime @map("expires_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([identifier], map: "verification_identifier_idx")
+  @@map("verification")
+}

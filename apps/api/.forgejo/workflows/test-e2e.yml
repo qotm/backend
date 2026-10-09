@@ -1,0 +1,83 @@
+name: End-to-End Tests
+
+on:
+  pull_request:
+    branches: [ development ]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+
+    services:
+      database:
+        image: postgres:15.3
+        env:
+          POSTGRES_USER: root
+          POSTGRES_PASSWORD: Secretto123
+          POSTGRES_DB: starter-db
+        ports:
+          - 5491:5432
+        options: >-
+          --health-cmd "pg_isready -U root -d starter-db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7.4.1
+        ports:
+          - 6391:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'yarn'
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Install Infisical CLI
+        run: npm install -g @infisical/cli
+
+      - name: Fetch secrets
+        env:
+          INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
+          INFISICAL_API_URL: https://inf.aurostack.co
+        run: yarn secrets -e test
+
+      # Point the fetched env at this job's service containers. Whole-line
+      # replacements, so they apply whatever host, port or credentials the
+      # vault's test env holds.
+      - name: Fix service URLs for CI
+        run: |
+          sed -i "s|^DATABASE_URL=.*|DATABASE_URL='postgresql://root:Secretto123@database:5432/starter-db'|" .env.test
+          sed -i "s/^REDIS_HOST=.*/REDIS_HOST='redis'/" .env.test
+          sed -i "s/^REDIS_PORT=.*/REDIS_PORT='6379'/" .env.test
+
+      - name: Push database schema
+        run: yarn test:db:push
+
+      - name: Seed database
+        run: yarn test:db:seed
+
+      - name: Run integration tests
+        run: yarn test:e2e

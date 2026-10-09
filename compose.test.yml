@@ -1,0 +1,30 @@
+# Test stack. Separate containers and host ports from compose.yml, so running
+# the suite never touches the database you are developing against.
+name: qotm-test
+services:
+  wait:
+    container_name: qotm-test-wait
+    image: ufoscout/docker-compose-wait:latest
+    command: sh -c '/wait && exit'
+    environment:
+      # List form, not a mapping: two `WAIT_HOSTS` mapping keys would be a
+      # duplicate-key error, whereas list entries are just strings and Compose
+      # takes the last one. The cache variant is therefore listed second.
+      - WAIT_HOSTS=database:5432,redis:6379
+      - WAIT_TIMEOUT=300
+  database:
+    container_name: qotm-test-database
+    image: postgres:15.3
+    restart: always
+    ports:
+      - 5499:5432
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: main
+  redis:
+    container_name: qotm-test-redis
+    image: redis:7.4.1
+    restart: always
+    ports:
+      - 6399:6379

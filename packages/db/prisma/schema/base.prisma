@@ -1,0 +1,23 @@
+// Datasource + generators. The models live in the other files in this folder.
+//
+// The client is generated as CommonJS and compiled to dist/ by `yarn build`, so
+// the API (CJS) and the worker (ESM) both import the same build of it:
+// `import { PrismaClient } from '@qotm/db/client'`.
+
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../generated"
+  moduleFormat    = "cjs"
+  previewFeatures = ["views", "fullTextSearchPostgres"]
+}
+
+generator dbml {
+  provider            = "prisma-dbml-generator"
+  output              = "../"
+  projectName         = "Qotm"
+  projectDatabaseType = "PostgreSQL"
+}

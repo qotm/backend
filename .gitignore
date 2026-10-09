@@ -1,0 +1,33 @@
+node_modules
+dist
+.turbo
+coverage
+logs
+*.log
+.DS_Store
+
+# yarn (berry, node-modules linker)
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnp.*
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea
+
+.env
+.env.test
+.env.production
+.env.staging
+.npmrc
+package-lock.json
+
+graphify-out/

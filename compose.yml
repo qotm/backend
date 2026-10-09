@@ -1,0 +1,38 @@
+# Local Postgres + Redis shared by the API and the worker. Driven by the
+# API's `yarn dc:*` scripts (or the same names from the backend root).
+name: qotm
+services:
+  # Blocks until Postgres and Redis actually accept connections — `docker
+  # compose up -d` returns long before that, and every "connection refused" on
+  # a fresh machine traces back to skipping this. Driven by `yarn dc:wait`.
+  wait:
+    container_name: qotm-wait
+    image: ufoscout/docker-compose-wait:latest
+    command: sh -c '/wait && exit'
+    environment:
+      # List form, not a mapping: two `WAIT_HOSTS` mapping keys would be a
+      # duplicate-key error, whereas list entries are just strings and Compose
+      # takes the last one. The cache variant is therefore listed second.
+      - WAIT_HOSTS=database:5432,redis:6379
+      - WAIT_TIMEOUT=300
+  database:
+    container_name: qotm-database
+    image: postgres:15.3
+    restart: always
+    ports:
+      - 5432:5432
+    environment:
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: main
+    volumes:
+      - database:/var/lib/postgresql/data
+  redis:
+    container_name: qotm-redis
+    image: redis:7.4.1
+    restart: always
+    ports:
+      - 6379:6379
+
+volumes:
+  database:

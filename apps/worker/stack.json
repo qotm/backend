@@ -1,0 +1,21 @@
+{
+	"template": "node-worker",
+	"templateVersion": "0.1.0",
+	"stackVersion": "0.3.0",
+	"generatedAt": "2026-10-06T02:47:42.360Z",
+	"name": "qotm-worker",
+	"scope": "qotm",
+	"port": 5000,
+	"description": "qotm background jobs: dataset release builds, share images, exports",
+	"features": [
+		"browser",
+		"ci",
+		"docker",
+		"logging",
+		"pm2",
+		"prisma",
+		"queue",
+		"secrets",
+		"telemetry"
+	]
+}

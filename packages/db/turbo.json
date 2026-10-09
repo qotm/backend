@@ -1,0 +1,11 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"extends": ["//"],
+	"tasks": {
+		"build": {
+			// Generated files are outputs, not inputs — counting them as inputs makes
+			// every build a cache miss.
+			"inputs": ["$TURBO_DEFAULT$", "!prisma/generated/**", "!prisma/schema.dbml", "!dist/**"]
+		}
+	}
+}
