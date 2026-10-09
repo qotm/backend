@@ -1,7 +1,0 @@
-dist/
-node_modules/
-package-lock.json
-.npmrc.example
-.env
-.env.example
-.env.test

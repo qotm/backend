@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: E2E Tests
+  e2e:
+    name: API E2E Tests
     runs-on: ubuntu-latest
 
     services:
@@ -37,20 +37,22 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+    defaults:
+      run:
+        working-directory: apps/api
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: 'yarn'
-
-      - name: Enable Corepack
-        run: corepack enable
 
       - name: Install dependencies
         run: yarn install --immutable
@@ -72,6 +74,10 @@ jobs:
           sed -i "s|^DATABASE_URL=.*|DATABASE_URL='postgresql://root:Secretto123@database:5432/starter-db'|" .env.test
           sed -i "s/^REDIS_HOST=.*/REDIS_HOST='redis'/" .env.test
           sed -i "s/^REDIS_PORT=.*/REDIS_PORT='6379'/" .env.test
+
+      # Builds the shared Prisma client (@qotm/db) the API and seeders import.
+      - name: Build Prisma client
+        run: yarn db:generate
 
       - name: Push database schema
         run: yarn test:db:push

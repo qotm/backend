@@ -1,0 +1,22 @@
+# Every image is built from the backend root (docker build -f apps/<app>/Dockerfile .),
+# so this is the only .dockerignore that applies.
+**/node_modules
+**/dist
+.turbo
+**/.turbo
+**/logs
+**/coverage
+**/tmp
+packages/db/prisma/generated
+packages/db/prisma/schema.dbml
+
+# Env files are never baked into an image; the runtime supplies them.
+**/.env
+**/.env.*
+!**/.env*.example
+**/.npmrc
+
+.git
+**/.forgejo
+**/.claude
+graphify-out

@@ -1,4 +1,4 @@
-name: Unit Tests
+name: CI
 
 on:
   push:
@@ -12,15 +12,16 @@ permissions:
   contents: read
 
 jobs:
-  test-and-build:
-    name: Test and Build
+  verify:
+    name: Lint, typecheck, test, build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Use Node.js 24
         uses: actions/setup-node@v4
@@ -28,26 +29,20 @@ jobs:
           node-version: 24
           cache: 'yarn'
 
-      - name: Enable Corepack
-        run: corepack enable
-
       - name: Install dependencies
         run: yarn install --immutable
 
       - name: Install Infisical CLI
         run: npm install -g @infisical/cli
 
+      # The API's unit tests load apps/api/.env.test.
       - name: Fetch secrets
         env:
           INFISICAL_TOKEN: ${{ secrets.INFISICAL_TOKEN }}
           INFISICAL_API_URL: https://inf.aurostack.co
-        run: yarn secrets -e test
+        run: yarn workspace @qotm/api secrets -e test
 
-      - name: Generate Prisma client
-        run: yarn test:db:generate
-
-      - name: Run unit tests
-        run: yarn test
-
-      - name: Build
-        run: yarn build
+      # Turbo builds @qotm/db (prisma generate + tsc) before anything that
+      # imports it, so there is no separate generate step.
+      - name: Lint, typecheck, test, build
+        run: yarn turbo run lint typecheck test build
