@@ -35,20 +35,20 @@ class DockerCompose extends Argv {
 		const { cmd, env } = await this.getArgs();
 		if (env === 'dev') {
 			if (cmd === 'up') return `${DEV} up -d ${SERVICES}`;
-			if (cmd === 'wait') return `${DEV} run wait`;
+			if (cmd === 'wait') return `${DEV} run --rm wait`;
 			if (cmd === 'down') return `${DEV} down`;
 			if (cmd === 'recreate')
-				return `${DEV} down && ${DEV} up -d ${SERVICES} && ${DEV} run wait`;
+				return `${DEV} down && ${DEV} up -d ${SERVICES} && ${DEV} run --rm wait`;
 
 			return undefined;
 		}
 
 		if (env === 'test') {
 			if (cmd === 'up') return `${TEST} up -d ${SERVICES}`;
-			if (cmd === 'wait') return `${TEST} run wait`;
+			if (cmd === 'wait') return `${TEST} run --rm wait`;
 			if (cmd === 'down') return `${TEST} down`;
 			if (cmd === 'recreate')
-				return `${TEST} down && ${TEST} up -d ${SERVICES} && ${TEST} run wait`;
+				return `${TEST} down && ${TEST} up -d ${SERVICES} && ${TEST} run --rm wait`;
 
 			return undefined;
 		}

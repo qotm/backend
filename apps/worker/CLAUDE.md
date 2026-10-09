@@ -5,6 +5,10 @@ A standalone TypeScript background worker, generated from the stacks
 no HTTP server: it consumes the jobs an API produces, against the API's own
 database.
 
+It is the `@qotm/worker` workspace of the backend monorepo (see
+`../../CLAUDE.md`). Its Prisma client is the shared `@qotm/db` package
+(`packages/db`), the same build the API uses.
+
 ## Commands
 
 ```sh
@@ -12,11 +16,12 @@ yarn dev            # run with the telemetry preload (tsx)
 yarn dev:watch      # same, restarting on change
 yarn typecheck && yarn lint && yarn format:check
 yarn build          # tsc → dist/
-yarn db:generate    # Prisma client from prisma/schema (needed after every schema change)
+yarn db:generate    # rebuild the shared @qotm/db client (the API's db:migrate does this too)
 ```
 
-There is no test script. The Docker build (`yarn install --immutable`,
-`yarn db:generate`, `yarn build`) is what CI runs, so `yarn.lock` and
+There is no test script. CI runs `turbo run lint typecheck test build` from the
+backend root, and the image is built from there too
+(`docker build -f apps/worker/Dockerfile .`), so the root `yarn.lock` and
 `.yarnrc.yml` must be committed.
 
 ## Layout
@@ -29,16 +34,18 @@ There is no test script. The Docker build (`yarn install --immutable`,
 - `src/db.ts`: `DB.instance`, the Prisma client (`DB.instance.$` adds
   `exists`, `paginate`).
 - `src/utils/browser.ts`: `launchBrowser()` for headless Chromium.
-- Imports use the `#app/*`, `#utils/*`, `#lib/*`, `#prisma/*` aliases, with
-  `.js` extensions (`#app/logger.js`).
+- Imports use the `#app/*`, `#utils/*`, `#lib/*` aliases, with `.js`
+  extensions (`#app/logger.js`). Prisma comes from `@qotm/db/client` (no
+  extension: it is a package export).
 
 ## Rules
 
-- **The API owns the database.** `prisma/schema/` is a copy (or a submodule)
-  of the API's schema; never write migrations here. Replace the placeholder
-  `User` in `base.prisma` with the API's models rather than deleting it: the
-  `db.ts` extensions are typed against it. Run `yarn db:generate` after every
-  schema change.
+- **The API owns the database.** The schema and migrations live in
+  `packages/db` and change only through the API's `yarn db:migrate`; never
+  migrate from here. Every model the API has is already in `@qotm/db/client`.
+  The `db.ts` extensions are typed against `User`, so typecheck after a schema
+  change. The worker runs the compiled client, so restart `yarn dev` after the
+  client is rebuilt.
 - **Queue names and Redis must match the producer's.** A worker on the wrong
   queue or Redis waits forever with no error. Names live in
   `src/workers/constants.ts`; keep them identical to the API's

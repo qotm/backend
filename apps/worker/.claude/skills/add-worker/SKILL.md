@@ -38,9 +38,10 @@ The example consumer is `src/workers/example/index.ts`; copy its shape.
 
    - Type the payload to match what the API enqueues; share the type by copy,
      and say in a comment where the producer lives.
-   - Use `DB.instance` from `#app/db.js` for data. Only models in
-     `prisma/schema/` exist; if the job needs a table the worker has not got,
-     bring the API's schema in and run `yarn db:generate` first.
+   - Use `DB.instance` from `#app/db.js` for data. It is the shared
+     `@qotm/db` client, so every model the API has exists here. If the job
+     needs a table that does not exist yet, add it through the API's
+     `add-model` (the API owns migrations), not from the worker.
    - Throw rather than return on failure. Retries and backoff are the
      producer's options (`attempts`, `backoff` on `queue.add`), not the
      worker's.

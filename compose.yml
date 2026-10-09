@@ -7,7 +7,7 @@ services:
   # a fresh machine traces back to skipping this. Driven by `yarn dc:wait`.
   wait:
     container_name: qotm-wait
-    image: ufoscout/docker-compose-wait:latest
+    image: aurostack.dev/wesnetech/wait:latest
     command: sh -c '/wait && exit'
     environment:
       # List form, not a mapping: two `WAIT_HOSTS` mapping keys would be a

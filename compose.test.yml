@@ -4,7 +4,7 @@ name: qotm-test
 services:
   wait:
     container_name: qotm-test-wait
-    image: ufoscout/docker-compose-wait:latest
+    image: aurostack.dev/wesnetech/wait:latest
     command: sh -c '/wait && exit'
     environment:
       # List form, not a mapping: two `WAIT_HOSTS` mapping keys would be a

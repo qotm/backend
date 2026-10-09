@@ -5,14 +5,15 @@ description: Add or change a Prisma model in this API — the schema file, relat
 
 # Add a Prisma model
 
-The schema is split by area under `prisma/schema/`: `base.prisma`
+The schema lives in the shared `@qotm/db` package, split by area under
+`../../packages/db/prisma/schema/` (paths below are relative to it): `base.prisma`
 (datasource, generators), `auth.prisma` (User, Session, Account,
 Verification), `enum.prisma` (every enum), and one file per feature. Read one
 existing model before writing yours.
 
 ## 1. The model
 
-`prisma/schema/<area>.prisma`:
+`packages/db/prisma/schema/<area>.prisma`:
 
 ```prisma
 model Thing {
@@ -43,18 +44,19 @@ model Thing {
 ## 2. Migrate
 
 ```sh
-yarn db:migrate          # prisma migrate dev: names, creates and applies the migration
+yarn db:migrate          # prisma migrate dev in @qotm/db, then rebuilds the client
 ```
 
 Name it for the change (`add_things`). Review the SQL it wrote in
-`prisma/migrations/`. A destructive change (dropping or narrowing a column
+`packages/db/prisma/migrations/`. A destructive change (dropping or narrowing a column
 with data) needs a deliberate, multi-step migration: say so rather than
 letting `migrate dev` reset the database. Never edit a migration already
 applied elsewhere. `yarn db:migrate:create` writes one without applying it,
 for hand-adjusting first.
 
-The client regenerates with the migration; import types from `@db/client`
-(`Prisma`, `Thing`) and enums from `@db/enums`.
+`yarn db:migrate` rebuilds the client (`yarn db:generate` does it alone).
+Import types from `@qotm/db/client` (`Prisma`, `Thing`) and enums from
+`@qotm/db/enums`, then restart `yarn dev`: it runs the compiled client.
 
 ## 3. Seed (if it needs reference data)
 
@@ -69,6 +71,7 @@ The test database is pushed, not migrated: `yarn test:db:push` (or
 
 ## Other services
 
-A worker that reads this table gets the schema change too: copy the schema
-file (or update the submodule) and run its `yarn db:generate`. A Python worker
-needs its SQLAlchemy model updated by hand.
+The node worker (`apps/worker`) imports the same `@qotm/db` client, so it gets
+the change automatically. Run `yarn typecheck` from the backend root to catch
+anything the change broke there. A Python worker needs its SQLAlchemy model
+updated by hand.

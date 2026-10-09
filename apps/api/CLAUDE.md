@@ -4,17 +4,23 @@ A NestJS API generated from the stacks `nest-api` template (`stack.json`
 records which features it has): Prisma over Postgres, better-auth, Zod
 validation and serialisation, an OpenAPI reference at `/docs`.
 
+It is the `@qotm/api` workspace of the backend monorepo (see
+`../../CLAUDE.md`). The Prisma schema, migrations and client live in
+`packages/db` (`@qotm/db`), shared with the worker; this app owns the database,
+so every `db:*` command runs from here.
+
 ## Commands
 
 ```sh
-yarn dc:up && yarn dc:wait   # local Postgres + Redis (compose.yml)
-yarn db:migrate              # create/apply a migration (prisma migrate dev)
+yarn dc:up && yarn dc:wait   # local Postgres + Redis (backend root compose.yml)
+yarn db:migrate              # create/apply a migration, then rebuild @qotm/db
+yarn db:generate             # rebuild the @qotm/db client without migrating
 yarn db:seed                 # seeders/index.ts
-yarn start                   # watch mode; http://localhost:5000/docs
+yarn dev                     # watch mode; http://localhost:5000/docs
 yarn build && yarn lint && yarn format
 ```
 
-Tests run against their own Postgres and Redis (`compose.test.yml`, ports
+Tests run against their own Postgres and Redis (root `compose.test.yml`, ports
 5499 / 6399, `.env.test`):
 
 ```sh
@@ -36,12 +42,13 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
 - `src/<resource>/`: one module per resource with `controllers/ services/
   dto/ entity/ decorators/ __tests__/`, each with an `index.ts` barrel.
   `src/users/` is the canonical example.
-- `prisma/schema/*.prisma`: one schema split by area; `enum.prisma` holds
-  every enum. `seeders/`: seed data.
+- `../../packages/db/prisma/schema/*.prisma`: one schema split by area;
+  `enum.prisma` holds every enum. Migrations sit beside it in
+  `packages/db/prisma/migrations/`. `seeders/`: seed data (stays here).
 - `emails/`: React Email templates (`__mocks__/` are their test doubles).
 - Imports: bare paths from `src/` (`common/services`, `users/users.module`),
-  `@db/client` for Prisma types, relative barrels (`'../services'`) inside a
-  module.
+  `@qotm/db/client` and `@qotm/db/enums` for Prisma, relative barrels
+  (`'../services'`) inside a module.
 
 ## Rules
 
@@ -60,7 +67,12 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
 - **Never read `process.env` in app code**: inject `CustomConfigService`.
   New variables go through `add-config`.
 - **Migrations are generated, not hand-written**: `yarn db:migrate` against
-  the schema files. Never edit a migration that has been applied elsewhere.
+  the schema files in `packages/db`. Never edit a migration that has been
+  applied elsewhere. A schema change reaches the worker too: run its
+  typecheck.
+- **The API runs the compiled client** (`packages/db/dist`). After
+  `db:migrate` / `db:generate`, restart `yarn dev`; Nest's watch does not see
+  the rebuild.
 - **Users are created through `auth.api`**, in the seeder too, never as raw
   rows.
 - Keep `src/instrumentation.ts` the first import in `main.ts`, and never
