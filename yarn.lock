@@ -13798,6 +13798,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "qotm-backend@workspace:."
   dependencies:
+    prettier: "npm:^3.9.9"
     turbo: "npm:^2.5.3"
   languageName: unknown
   linkType: soft

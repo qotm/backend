@@ -18,7 +18,7 @@
 		"db:generate": "yarn workspace @qotm/db build",
 		"db:push": "tsx ./.bin/db.ts -c push",
 		"db:migrate:create": "dotenv -e .env -- yarn workspace @qotm/db prisma migrate dev --create-only",
-		"db:migrate": "dotenv -e .env -- yarn workspace @qotm/db prisma migrate dev && yarn db:generate",
+		"db:migrate": "dotenv -e .env -- yarn workspace @qotm/db prisma migrate dev \"$@\" && yarn db:generate",
 		"db:migrate:prod": "yarn workspace @qotm/db prisma migrate deploy",
 		"db:seed": "tsx ./.bin/db.ts -c seed",
 		"db:reset": "tsx ./.bin/db.ts -c reset",

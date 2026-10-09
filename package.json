@@ -16,6 +16,7 @@
 		"lint": "turbo run lint",
 		"typecheck": "turbo run typecheck",
 		"test": "turbo run test",
+		"format": "prettier --write \"apps/api/{src,test}/**/*.ts\" apps/worker --no-error-on-unmatched-pattern",
 		"db:generate": "yarn workspace @qotm/db build",
 		"db:migrate": "yarn workspace @qotm/api db:migrate",
 		"db:migrate:create": "yarn workspace @qotm/api db:migrate:create",
@@ -27,6 +28,7 @@
 		"dc:reinstall": "yarn workspace @qotm/api dc:reinstall"
 	},
 	"devDependencies": {
+		"prettier": "^3.9.9",
 		"turbo": "^2.5.3"
 	}
 }
