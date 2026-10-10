@@ -14,7 +14,7 @@
 		"typecheck": "tsc --noEmit",
 		"format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" --no-error-on-unmatched-pattern",
 		"email:dev": "email dev -p 5003",
-		"secrets": "tsx .bin/secrets",
+		"secrets": "secrets",
 		"db:generate": "yarn workspace @qotm/db build",
 		"db:push": "tsx ./.bin/db.ts -c push",
 		"db:migrate:create": "dotenv -e .env -- yarn workspace @qotm/db prisma migrate dev --create-only",
@@ -111,6 +111,7 @@
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
+		"@aurostack/secrets": "^0.1.1",
 		"@eslint/js": "^10.0.1",
 		"@golevelup/ts-vitest": "^2.2.0",
 		"@nestjs/cli": "^12.0.6",

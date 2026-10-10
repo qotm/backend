@@ -65,6 +65,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@aurostack/secrets@npm:^0.1.1":
+  version: 0.1.1
+  resolution: "@aurostack/secrets@npm:0.1.1"
+  bin:
+    secrets: dist/cli.js
+  checksum: 10c0/54d528077a8bf3908b5f05f92110a314e3d34279de087e0180e4cd840b45cf06b490849527d2f12cd7e9b1f4ec3c3fb8b5100c9a11d96f6c6404285b570664d7
+  languageName: node
+  linkType: hard
+
 "@aws-sdk/checksums@npm:^3.1001.1":
   version: 3.1001.1
   resolution: "@aws-sdk/checksums@npm:3.1001.1"
@@ -3893,6 +3902,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@qotm/api@workspace:apps/api"
   dependencies:
+    "@aurostack/secrets": "npm:^0.1.1"
     "@aws-sdk/client-s3": "npm:^3.1013.0"
     "@bull-board/api": "npm:^9.10.1"
     "@bull-board/express": "npm:^9.10.1"
@@ -4012,6 +4022,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@qotm/worker@workspace:apps/worker"
   dependencies:
+    "@aurostack/secrets": "npm:^0.1.1"
     "@eslint/js": "npm:^10.0.1"
     "@opentelemetry/api": "npm:^1.9.1"
     "@opentelemetry/auto-instrumentations-node": "npm:^0.80.0"

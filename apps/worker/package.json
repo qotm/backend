@@ -23,7 +23,7 @@
 		"dev:watch": "tsx watch --conditions=development --import ./src/instrumentation.ts src/index.ts",
 		"build": "tsc",
 		"start": "node --import ./dist/src/instrumentation.js dist/src/index.js",
-		"secrets": "tsx --conditions=development .bin/secrets",
+		"secrets": "secrets",
 		"db:generate": "yarn workspace @qotm/db build",
 		"typecheck": "tsc --noEmit",
 		"lint": "eslint .",
@@ -60,6 +60,7 @@
 		"yargs": "^18.0.0"
 	},
 	"devDependencies": {
+		"@aurostack/secrets": "^0.1.1",
 		"@eslint/js": "^10.0.1",
 		"@types/node": "^26.1.0",
 		"@types/shelljs": "^0.10.0",
