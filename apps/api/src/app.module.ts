@@ -44,6 +44,7 @@ import { ReleasesModule } from 'releases/releases.module';
 import { AdminReleasesModule } from 'admin/releases/admin-releases.module';
 import { DatasetModule } from 'dataset/dataset.module';
 import { ShareModule } from 'share/share.module';
+import { AdminQuotesModule } from 'admin/quotes/admin-quotes.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -288,7 +289,8 @@ import { OriginBuilder } from 'common/misc';
 		ReleasesModule,
 		AdminReleasesModule,
 		DatasetModule,
-		ShareModule
+		ShareModule,
+		AdminQuotesModule
 	],
 	controllers: [AppController],
 	providers: [
