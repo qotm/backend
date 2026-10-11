@@ -1,0 +1,58 @@
+/// An external person a canonical quote is attributed to. Never a member:
+/// members are credited as contributors, through User.
+model Author {
+  id          String   @id(map: "authors_pk") @default(cuid())
+  /// As credited: "Edsger W. Dijkstra", "Harold Abelson & Gerald Jay Sussman".
+  name        String   @db.VarChar(160)
+  /// `/authors/:slug` and `qotm --author <slug>`.
+  slug        String   @db.VarChar(80)
+  /// The lifespan line, "1930–2002 · computer scientist", is built from these
+  /// three; all are optional ("—" when nothing is known).
+  bornYear    Int?     @map("born_year") @db.SmallInt
+  diedYear    Int?     @map("died_year") @db.SmallInt
+  description String?  @db.VarChar(80)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  sources Source[]
+
+  @@unique([slug], map: "authors_slug_idx")
+  @@index([name], map: "authors_name_idx")
+  @@map("authors")
+}
+
+/// A book, paper, talk or post quotes are verified against.
+model Source {
+  id        String     @id(map: "sources_pk") @default(cuid())
+  title     String     @db.VarChar(300)
+  authorId  String?    @map("author_id")
+  year      Int?       @db.SmallInt
+  kind      SourceKind
+  url       String?    @db.VarChar(2048)
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+
+  // Restrict: removing an author must not silently orphan its sources.
+  author Author? @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "sources_author_fk")
+
+  @@index([authorId], map: "sources_author_id_idx")
+  @@index([title], map: "sources_title_idx")
+  @@map("sources")
+}
+
+/// The controlled taxonomy: members pick from it, admins add to it.
+model Topic {
+  id          String   @id(map: "topics_pk") @default(cuid())
+  /// Lowercase, as displayed: "software design".
+  name        String   @db.VarChar(60)
+  /// `/topics/:slug` and `qotm --topic <slug>`: "software-design".
+  slug        String   @db.VarChar(60)
+  /// The line under the topic's heading.
+  description String?  @db.VarChar(200)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([name], map: "topics_name_idx")
+  @@unique([slug], map: "topics_slug_idx")
+  @@map("topics")
+}

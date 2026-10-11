@@ -2,3 +2,13 @@ enum Gender {
   male
   female
 }
+
+/// What a Source is. Shown lowercase in the UI.
+enum SourceKind {
+  BOOK
+  PAPER
+  MANUSCRIPT
+  LECTURE
+  TALK
+  POST
+}

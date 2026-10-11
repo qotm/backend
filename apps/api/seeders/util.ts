@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { auth } from '../src/lib/auth';
 import { PrismaClient } from '@qotm/db/client';
+import { TOPICS } from './topics';
 
 interface Admin {
 	email: string;
@@ -29,10 +30,22 @@ class Seeder {
 	}
 
 	async seed(admin: Admin, isTest = false) {
+		await this.seedTopics();
 		await this.seedSuperuser(admin);
 
 		if (isTest) {
 			await this.seedTestUsers();
+		}
+	}
+
+	/** The fixed taxonomy. Upserted, so a re-run adds missing topics only. */
+	private async seedTopics() {
+		for (const topic of TOPICS) {
+			await this.db.topic.upsert({
+				where: { slug: topic.slug },
+				create: topic,
+				update: {}
+			});
 		}
 	}
 
