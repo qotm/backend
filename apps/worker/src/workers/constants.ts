@@ -21,3 +21,10 @@ export const RECHECK_ORIGINALS = 'recheck-originals';
 export const RELEASES_QUEUE = 'releases';
 export const BUILD_PREVIEW = 'build-preview';
 export const PUBLISH_RELEASE = 'publish-release';
+
+/**
+ * Share-image renders. Produced by the API's ShareModule
+ * (`apps/api/src/share/jobs.ts`, SHARE_IMAGES_QUEUE).
+ */
+export const SHARE_IMAGES_QUEUE = 'share-images';
+export const RENDER_SHARE_IMAGE = 'render-share-image';

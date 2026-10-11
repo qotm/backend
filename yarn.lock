@@ -1187,6 +1187,20 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@fontsource/jetbrains-mono@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/jetbrains-mono@npm:5.3.0"
+  checksum: 10c0/1351b2350e893f5da39559ed90ff0e5e60bcc876b1f40531ad081ad4bf2f3cda3fa9e8940364aef5a7430ae3140685c9cd4819c36d8ad62bcd3fa37e3cc66b1d
+  languageName: node
+  linkType: hard
+
+"@fontsource/space-grotesk@npm:^5.3.0":
+  version: 5.3.0
+  resolution: "@fontsource/space-grotesk@npm:5.3.0"
+  checksum: 10c0/6804603d339edb99e50419e951c153d6ab0c175cd1a3c5044341c5efa261dcae63aec2288d5dd4d698d82b44c9a23a34f065881055b08887de08df2769c9791a
+  languageName: node
+  linkType: hard
+
 "@golevelup/ts-vitest@npm:^2.2.0":
   version: 2.2.0
   resolution: "@golevelup/ts-vitest@npm:2.2.0"
@@ -4027,6 +4041,8 @@ __metadata:
     "@aurostack/secrets": "npm:^0.1.1"
     "@aws-sdk/client-s3": "npm:^3.1013.0"
     "@eslint/js": "npm:^10.0.1"
+    "@fontsource/jetbrains-mono": "npm:^5.3.0"
+    "@fontsource/space-grotesk": "npm:^5.3.0"
     "@opentelemetry/api": "npm:^1.9.1"
     "@opentelemetry/auto-instrumentations-node": "npm:^0.80.0"
     "@opentelemetry/core": "npm:^2.11.0"

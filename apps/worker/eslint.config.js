@@ -5,7 +5,14 @@ import globals from 'globals';
 
 export default tseslint.config(
 	{
-		ignores: ['node_modules/', 'dist/', 'tmp/', 'ecosystem.config.cjs']
+		// assets/share holds vendored qotm_kit and React builds, and a page script.
+		ignores: [
+			'node_modules/',
+			'dist/',
+			'tmp/',
+			'assets/',
+			'ecosystem.config.cjs'
+		]
 	},
 	js.configs.recommended,
 	...tseslint.configs.recommendedTypeChecked.map((config) => ({

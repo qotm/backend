@@ -9,6 +9,8 @@ import config from '#app/config.js';
 export interface PutOptions {
 	contentType: string;
 	cacheControl?: string;
+	/** Readable by anyone (the bucket's `public-read` ACL, as the API's media uses). */
+	public?: boolean;
 }
 
 /** What jobs need from object storage; tests pass an in-memory one. */
@@ -54,7 +56,8 @@ export class S3Storage implements Storage {
 				Key: key,
 				Body: body,
 				ContentType: options.contentType,
-				...(options.cacheControl ? { CacheControl: options.cacheControl } : {})
+				...(options.cacheControl ? { CacheControl: options.cacheControl } : {}),
+				...(options.public ? { ACL: 'public-read' as const } : {})
 			})
 		);
 	}

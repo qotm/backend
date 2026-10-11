@@ -82,7 +82,8 @@ export async function publishRelease(
 		}
 		await storage.put(artifactKey, bytes, {
 			contentType: 'application/vnd.sqlite3',
-			cacheControl: IMMUTABLE
+			cacheControl: IMMUTABLE,
+			public: true
 		});
 	}
 
@@ -156,7 +157,8 @@ export async function publishRelease(
 	};
 	await storage.put(manifestKey, JSON.stringify(manifest, null, 2), {
 		contentType: 'application/json',
-		cacheControl: IMMUTABLE
+		cacheControl: IMMUTABLE,
+		public: true
 	});
 	return { version: final.version, published, manifest };
 }

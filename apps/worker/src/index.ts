@@ -9,7 +9,12 @@ logger.info('Worker started');
 
 // Add each new BullMQ worker to this list: it is started here and closed on
 // shutdown (close() stops fetching and waits for the active job).
-const queueWorkers = [Workers.example, Workers.matching, Workers.releases];
+const queueWorkers = [
+	Workers.example,
+	Workers.matching,
+	Workers.releases,
+	Workers.shareImages
+];
 for (const worker of queueWorkers) void worker.run();
 
 let stopping = false;
@@ -23,7 +28,9 @@ const shutdown = (signal: NodeJS.Signals) => {
 	void Promise.allSettled([
 		...queueWorkers.map((worker) => worker.close()),
 		...running
-	]).then(() => process.exit(0));
+	])
+		.then(() => Workers.closeChromium())
+		.finally(() => process.exit(0));
 };
 process.on('SIGTERM', shutdown);
 process.on('SIGINT', shutdown);

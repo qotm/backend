@@ -66,6 +66,8 @@ COPY --from=build /repo/packages/db/dist ./packages/db/dist
 COPY --from=build /repo/apps/worker/package.json /repo/apps/worker/ecosystem.config.cjs ./apps/worker/
 COPY --from=build /repo/apps/worker/node_modules ./apps/worker/node_modules
 COPY --from=build /repo/apps/worker/dist ./apps/worker/dist
+# The share-image template: qotm_kit's styles and components (src/workers/share-images).
+COPY --from=build /repo/apps/worker/assets ./apps/worker/assets
 
 WORKDIR /repo/apps/worker
 

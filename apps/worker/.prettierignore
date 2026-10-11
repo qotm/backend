@@ -4,3 +4,6 @@ tmp/
 yarn.lock
 # the Prisma client is generated; formatting it would only churn
 prisma/generated/
+assets/share/*.min.js
+assets/share/qotm-kit.*
+assets/share/tokens.css
