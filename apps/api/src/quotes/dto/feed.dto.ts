@@ -12,6 +12,10 @@ export const QuoteFeedQuery = z.object({
 	author: z.string().max(80).optional().meta({ example: 'dijkstra' }),
 	contributor: z.string().max(30).optional().meta({ example: 'ada' }),
 	type: z.enum(['canonical', 'original']).optional(),
+	state: z.enum(['all', 'curated', 'review']).default('all').meta({
+		description:
+			'all · curated (curated or shipped) · review (public, still being checked; the author page tab)'
+	}),
 	cursor: z
 		.string()
 		.regex(/^q_[0-9a-z]{6}$/)

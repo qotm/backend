@@ -43,3 +43,24 @@ export const IN_FEEDS: Prisma.QuoteWhereInput = {
 	status: { notIn: [...NOT_PUBLIC] },
 	publishedAt: { not: null }
 };
+
+/** Curated, and shipped in a release: the "curated" tab and count. */
+export const CURATED_STATUSES: readonly S[] = [S.CURATED, S.DATASET_RELEASE];
+
+/** Public but still being checked: the author page's "in review" tab. */
+export const REVIEW_STATUSES: readonly S[] = [S.UNDER_REVIEW, S.NEEDS_EVIDENCE];
+
+export type FeedState = 'all' | 'curated' | 'review';
+
+/**
+ * Which quotes a feed shows for a tab. `all` and `curated` hold to IN_FEEDS
+ * (past their first check); `review` lists public quotes still being checked,
+ * which have no `publishedAt` yet.
+ */
+export function feedWhere(state: FeedState = 'all'): Prisma.QuoteWhereInput {
+	if (state === 'review') return { status: { in: [...REVIEW_STATUSES] } };
+	if (state === 'curated') {
+		return { ...IN_FEEDS, status: { in: [...CURATED_STATUSES] } };
+	}
+	return IN_FEEDS;
+}

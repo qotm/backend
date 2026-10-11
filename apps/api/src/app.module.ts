@@ -36,6 +36,7 @@ import { AdminReviewModule } from 'admin/review/admin-review.module';
 import { ReportsModule } from 'reports/reports.module';
 import { DevicesModule } from 'devices/devices.module';
 import { ReactionsModule } from 'reactions/reactions.module';
+import { TaxonomyModule } from 'taxonomy/taxonomy.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -272,7 +273,8 @@ import { OriginBuilder } from 'common/misc';
 		AdminReviewModule,
 		ReportsModule,
 		DevicesModule,
-		ReactionsModule
+		ReactionsModule,
+		TaxonomyModule
 	],
 	controllers: [AppController],
 	providers: [

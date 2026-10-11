@@ -3,7 +3,14 @@ import { Prisma } from '@qotm/db/client';
 import { QuoteStatus, QuoteType, ReleaseState } from '@qotm/db/enums';
 import { CacheService, PrismaService } from 'common/services';
 import { PUBLIC_ID_PATTERN } from '../public-id';
-import { IN_FEEDS, NOT_PUBLIC, canView } from '../visibility';
+import {
+	CURATED_STATUSES,
+	IN_FEEDS,
+	NOT_PUBLIC,
+	REVIEW_STATUSES,
+	canView,
+	feedWhere
+} from '../visibility';
 import type { QuoteFeedQuery } from '../dto';
 import { CARD, toCard, type CardRow } from '../cards';
 import type {
@@ -54,7 +61,7 @@ export class QuotesService {
 		}
 
 		const rows = await this.db.quote.findMany({
-			where: { publicId: { in: page.ids }, ...IN_FEEDS },
+			where: { publicId: { in: page.ids }, ...feedWhere(query.state) },
 			include: CARD
 		});
 		const byId = new Map(rows.map((row) => [row.publicId, row]));
@@ -186,7 +193,10 @@ export class QuotesService {
 
 	/** latest and curated: newest first, keyset-paginated on the cursor's row. */
 	private async orderedIds(query: QuoteFeedQuery) {
-		const where: Prisma.QuoteWhereInput = { ...IN_FEEDS, ...filtersOf(query) };
+		const where: Prisma.QuoteWhereInput = {
+			...feedWhere(query.state),
+			...filtersOf(query)
+		};
 		if (query.feed === 'curated') {
 			const current = await this.currentRelease();
 			if (!current) return [];
@@ -195,7 +205,12 @@ export class QuotesService {
 		const rows = await this.db.quote.findMany({
 			where,
 			select: { publicId: true },
-			orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+			// Quotes in review have no publishedAt yet: newest submitted first.
+			orderBy: [
+				{ publishedAt: { sort: 'desc', nulls: 'last' } },
+				{ createdAt: 'desc' },
+				{ id: 'desc' }
+			],
 			take: query.limit + 1,
 			...(query.cursor ? { cursor: { publicId: query.cursor }, skip: 1 } : {})
 		});
@@ -210,13 +225,21 @@ export class QuotesService {
 	private async discoverIds(query: QuoteFeedQuery) {
 		const seed = feedSeed('discover');
 		const type = query.type ? query.type.toUpperCase() : null;
+		const statuses =
+			query.state === 'curated'
+				? [...CURATED_STATUSES]
+				: query.state === 'review'
+					? [...REVIEW_STATUSES]
+					: null;
+		const published = query.state !== 'review';
 		const rows = await this.db.$queryRaw<{ public_id: string }[]>`
 			SELECT q.public_id
 			FROM quotes q
 			LEFT JOIN authors a ON a.id = q.author_id
 			LEFT JOIN "user" u ON u.id = q.contributor_id
-			WHERE q.published_at IS NOT NULL
+			WHERE (NOT ${published} OR q.published_at IS NOT NULL)
 				AND q.status::text <> ALL(${[...NOT_PUBLIC]}::text[])
+				AND (${statuses}::text[] IS NULL OR q.status::text = ANY(${statuses}::text[]))
 				AND (${query.author ?? null}::text IS NULL OR a.slug = ${query.author ?? null})
 				AND (${query.contributor ?? null}::text IS NULL OR u.handle = ${query.contributor ?? null})
 				AND (${type}::text IS NULL OR q.type::text = ${type})
