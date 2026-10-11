@@ -16,5 +16,8 @@ export const AUTH_RATE_LIMIT_RULES: Record<string, AuthRateLimitRule> = {
 	'/sign-in/email': { window: 60, max: 5 },
 	'/sign-up/email': { window: 3600, max: 5 },
 	'/forget-password': { window: 3600, max: 3 },
-	'/reset-password': { window: 3600, max: 5 }
+	'/reset-password': { window: 3600, max: 5 },
+	// QOT-7: 10 magic-link requests per IP per hour. The per-email limit is in
+	// lib/sign-in-guard.ts.
+	'/sign-in/magic-link': { window: 3600, max: 10 }
 };

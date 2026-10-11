@@ -7,7 +7,8 @@ import {
 	ActivationTwoFaData,
 	WelcomeData,
 	ForgotPasswordData,
-	SetPasswordData
+	SetPasswordData,
+	MagicLinkData
 } from 'common/types';
 
 @Injectable()
@@ -40,5 +41,13 @@ export class MailService {
 
 	setPassword = (data: SetPasswordData) => {
 		this.mail.add(MailJob.SetPassword, data);
+	};
+
+	/** The sign-in link. Retried: it is the only way in. */
+	magicLink = (data: MagicLinkData) => {
+		this.mail.add(MailJob.MagicLink, data, {
+			attempts: 5,
+			backoff: { type: 'exponential', delay: 5_000 }
+		});
 	};
 }

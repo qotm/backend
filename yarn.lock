@@ -3949,6 +3949,7 @@ __metadata:
     "@suites/unit": "npm:^3.0.1"
     "@swc/core": "npm:^1.15.18"
     "@thallesp/nestjs-better-auth": "npm:^2.8.0"
+    "@types/disposable-email-domains": "npm:^1"
     "@types/express": "npm:^5.0.6"
     "@types/multer": "npm:^1.4.7"
     "@types/node": "npm:^25.0.9"
@@ -3965,6 +3966,7 @@ __metadata:
     bullmq: "npm:^6.3.9"
     bullmq-otel: "npm:^2.0.1"
     cross-env: "npm:^7.0.3"
+    disposable-email-domains: "npm:^1.0.62"
     dotenv: "npm:^17.4.2"
     dotenv-cli: "npm:^7.2.1"
     eslint: "npm:^10.11.0"
@@ -4061,7 +4063,7 @@ __metadata:
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
     typescript-eslint: "npm:^8.62.1"
-    vitest: "npm:4.1.11"
+    vitest: "npm:^4.1.11"
     yargs: "npm:^18.0.0"
   languageName: unknown
   linkType: soft
@@ -5182,6 +5184,13 @@ __metadata:
   version: 4.0.2
   resolution: "@types/deep-eql@npm:4.0.2"
   checksum: 10c0/bf3f811843117900d7084b9d0c852da9a044d12eb40e6de73b552598a6843c21291a8a381b0532644574beecd5e3491c5ff3a0365ab86b15d59862c025384844
+  languageName: node
+  linkType: hard
+
+"@types/disposable-email-domains@npm:^1":
+  version: 1.0.6
+  resolution: "@types/disposable-email-domains@npm:1.0.6"
+  checksum: 10c0/82ec3da2f7a1e0f263fb0c66989c53eb84f0c89f6d51c72d70cc39a6800e8ba180aa79acfe7b0b08b0a525c7b25037ff3f4dd8491433513007f9c2c793c8114d
   languageName: node
   linkType: hard
 
@@ -8018,6 +8027,13 @@ __metadata:
     escape-string-applescript: "npm:^3.0.0"
     run-applescript: "npm:^5.0.0"
   checksum: 10c0/d6b03f4bfe71152d6882185b3a3ad8d2265aa268189c00b750d78d7cbc638d8dddb6634ed691a7a5083b103b0470a91cf194a7ed2a4bec7d039d3ae142eb1e74
+  languageName: node
+  linkType: hard
+
+"disposable-email-domains@npm:^1.0.62":
+  version: 1.0.62
+  resolution: "disposable-email-domains@npm:1.0.62"
+  checksum: 10c0/556062c5bc93cb712e7b6d05323555d0940b2ffbcdd560a21e23cf56fccf7fd71e623091891b04616326974e7c0880357df8627e40f280edd92a7c513376e983
   languageName: node
   linkType: hard
 
@@ -15944,7 +15960,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitest@npm:4.1.11, vitest@npm:^4.1.11":
+"vitest@npm:^4.1.11":
   version: 4.1.11
   resolution: "vitest@npm:4.1.11"
   dependencies:

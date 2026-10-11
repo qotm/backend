@@ -5,7 +5,8 @@ export enum MailJob {
 	PasswordChanged = 'password-changed',
 	ResetPassword = 'reset-password',
 	SetPassword = 'set-password',
-	Welcome = 'welcome'
+	Welcome = 'welcome',
+	MagicLink = 'magic-link'
 }
 
 export interface EmailGlobalProps {
@@ -52,4 +53,11 @@ export interface WelcomeData {
 	firstName: string;
 	clientLoginPage: string;
 	supportEmail: string;
+}
+
+export interface MagicLinkData {
+	to: string;
+	url: string;
+	/** How long the link works, for the copy ("expires in 10 minutes"). */
+	expiresInMinutes: number;
 }

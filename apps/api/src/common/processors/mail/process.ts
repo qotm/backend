@@ -8,6 +8,7 @@ import ForgotPassword from '@emails/forgot-password';
 import PasswordChanged from '@emails/password-changed';
 import ResetPassword from '@emails/reset-password';
 import SetPassword from '@emails/set-password';
+import MagicLink from '@emails/magic-link';
 import {
 	MailJob,
 	EmailGlobalProps,
@@ -15,7 +16,8 @@ import {
 	ActivationTwoFaData,
 	WelcomeData,
 	SetPasswordData,
-	ForgotPasswordData
+	ForgotPasswordData,
+	MagicLinkData
 } from 'common/types';
 
 type Options = Omit<ISendMailOptions, 'from'>;
@@ -199,6 +201,25 @@ class PasswordChangedProcess extends ProcessAbstract<string> {
 	}
 }
 
+class MagicLinkProcess extends ProcessAbstract<MagicLinkData> {
+	subject = 'Your qotm sign-in link';
+	preview = 'One click signs you in. It works once.';
+
+	process(): Options {
+		const {
+			subject,
+			preview,
+			job: {
+				data: { to, url, expiresInMinutes }
+			}
+		} = this;
+		const html = render(
+			MagicLink({ ...this.globals, subject, preview, url, expiresInMinutes })
+		);
+		return { to, subject, html };
+	}
+}
+
 export class ProcessFactory {
 	private static jobs = {
 		[MailJob.Activation]: ActivationProcess,
@@ -207,7 +228,8 @@ export class ProcessFactory {
 		[MailJob.ForgotPassword]: ForgotPasswordProcess,
 		[MailJob.ResetPassword]: ResetPasswordProcess,
 		[MailJob.PasswordChanged]: PasswordChangedProcess,
-		[MailJob.SetPassword]: SetPasswordProcess
+		[MailJob.SetPassword]: SetPasswordProcess,
+		[MailJob.MagicLink]: MagicLinkProcess
 	};
 
 	private static getProcess(name: MailJob) {

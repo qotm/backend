@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { HttpModule } from '@nestjs/axios';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -9,7 +9,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule, AuthGuard } from '@thallesp/nestjs-better-auth';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { admin, openAPI } from 'better-auth/plugins';
+import { admin, magicLink, openAPI } from 'better-auth/plugins';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { CustomConfigService, PrismaService } from 'common/services';
@@ -31,6 +31,12 @@ import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
 import { handleAuthOptions } from 'lib/handle';
+import {
+	MAGIC_LINK_RATE_LIMIT,
+	MAGIC_LINK_TTL_SECONDS,
+	socialProviders
+} from 'lib/sign-in';
+import { EMAIL_LIMIT, emailLimitKey, signInGuard } from 'lib/sign-in-guard';
 import { OriginBuilder } from 'common/misc';
 
 @Module({
@@ -98,18 +104,20 @@ import { OriginBuilder } from 'common/misc';
 						}
 					},
 					databaseHooks: handleAuthOptions(db).databaseHooks,
-					socialProviders: {
-						google: {
-							clientId: config.oauth.google.clientId,
-							clientSecret: config.oauth.google.clientSecret,
-							scope: ['email', 'profile'],
-							redirectURI: `${config.betterAuth.url}/auth/callback/google`,
-							accessType: 'offline',
-							prompt: 'select_account consent'
-						}
+					socialProviders: socialProviders(config.betterAuth.url, config.oauth),
+					// Disposable addresses and per-email flooding (QOT-7). The per-email
+					// count follows RATE_LIMIT_ENABLED like every other limit.
+					hooks: {
+						before: signInGuard(
+							config.rateLimit.enabled
+								? (email) =>
+										cache.incr(emailLimitKey(email), EMAIL_LIMIT.windowSeconds)
+								: undefined
+						)
 					},
+					// No passwords in qotm; only the test environment turns them on.
 					emailAndPassword: {
-						enabled: true,
+						enabled: config.betterAuth.passwordEnabled,
 						requireEmailVerification: true,
 						sendResetPassword: async ({ user, url, token }) => {
 							mail.forgotPassword({
@@ -146,6 +154,24 @@ import { OriginBuilder } from 'common/misc';
 							defaultRole: DEFAULT_ROLE,
 							ac,
 							roles
+						}),
+						// Sign-in and sign-up in one: an unknown email gets an account.
+						magicLink({
+							expiresIn: MAGIC_LINK_TTL_SECONDS,
+							rateLimit: MAGIC_LINK_RATE_LIMIT,
+							sendMagicLink: async ({ email, url }) => {
+								mail.magicLink({
+									to: email,
+									url,
+									expiresInMinutes: MAGIC_LINK_TTL_SECONDS / 60
+								});
+								// No mailbox needed to sign in locally.
+								if (config.app.env === 'development') {
+									new Logger('MagicLink').log(
+										`magic link for ${email}: ${url}`
+									);
+								}
+							}
 						}),
 						openAPI()
 					],

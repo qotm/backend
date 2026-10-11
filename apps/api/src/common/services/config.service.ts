@@ -60,6 +60,12 @@ namespace Config {
 		url: string;
 		cookieDomain: string;
 		cookiePrefix: string;
+		/**
+		 * Email + password sign-in. Off everywhere but the test environment:
+		 * qotm signs in with magic links and OAuth only (QOT-35), and the e2e
+		 * suite signs its seeded users in with passwords.
+		 */
+		passwordEnabled: boolean;
 	}
 
 	export interface Superuser {
@@ -102,6 +108,7 @@ namespace Config {
 
 	export interface OAuth {
 		google: OAuthGoogle;
+		github: OAuthGoogle;
 	}
 
 	export interface Env {
@@ -127,55 +134,67 @@ namespace Config {
 	const num = (schema: z.ZodNumber = z.number()) =>
 		z.string().trim().min(1).transform(Number).pipe(schema);
 
-	export const schema = z.object({
-		APP_ENV: z
-			.enum(['development', 'production', 'test'])
-			.default('development'),
-		APP_HOST: str(),
-		APP_NAME: str(),
-		SERVER_HOST: str(),
-		FRONTEND_HOST: str(),
-		MISC_CORS_ORIGINS: z.string().default(''),
-		PORT: num().default(5000),
-		DATABASE_URL: str(),
-		BETTER_AUTH_SECRET: str(),
-		BETTER_AUTH_URL: str(),
-		BETTER_AUTH_COOKIE_DOMAIN: z.string().default(''),
-		BETTER_AUTH_COOKIE_PREFIX: str(),
-		SUPERUSER_EMAIL: str(),
-		SUPERUSER_PASSWORD: str(),
-		OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
-		OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
-		LOG_LEVEL: str().default('info'),
-		HEALTH_HEAP_MAX_MB: num(z.number().positive()).default(300),
-		HEALTH_RSS_MAX_MB: num(z.number().positive()).default(300),
-		HEALTH_DISK_THRESHOLD: num(z.number().min(0).max(1)).default(0.8),
-		HEALTH_DISK_PATH: str().default('/'),
-		BASIC_AUTH_USER: str(),
-		BASIC_AUTH_PASS: str(),
-		REDIS_HOST: str().default('localhost'),
-		REDIS_PORT: num().default(6379),
-		REDIS_USER: z.string().optional(),
-		REDIS_PASSWORD: z.string().optional(),
-		SMTP_HOST: str(),
-		SMTP_PORT: z.enum(['465', '587']),
-		SMTP_SECURE: z.enum(['true', 'false']),
-		SMTP_USER: str(),
-		SMTP_PASSWORD: str(),
-		SMTP_FROM: str(),
-		SMTP_SUPPORT_EMAIL: str(),
-		S3_REGION: str().default('us-east-1'),
-		S3_ENDPOINT: z.string().optional(),
-		S3_BUCKET_NAME: str(),
-		S3_ACCESS_KEY_ID: z.string().optional(),
-		S3_SECRET_ACCESS_KEY: z.string().optional(),
-		RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
-		RATE_LIMIT_TTL: num().default(60_000),
-		RATE_LIMIT_MAX: num().default(120),
-		RATE_LIMIT_AUTH_WINDOW: num().default(10),
-		RATE_LIMIT_AUTH_MAX: num().default(100),
-		RATE_LIMIT_IP_HEADERS: str().default('x-forwarded-for')
-	});
+	export const schema = z
+		.object({
+			APP_ENV: z
+				.enum(['development', 'production', 'test'])
+				.default('development'),
+			APP_HOST: str(),
+			APP_NAME: str(),
+			SERVER_HOST: str(),
+			FRONTEND_HOST: str(),
+			MISC_CORS_ORIGINS: z.string().default(''),
+			PORT: num().default(5000),
+			DATABASE_URL: str(),
+			BETTER_AUTH_SECRET: str(),
+			BETTER_AUTH_URL: str(),
+			BETTER_AUTH_COOKIE_DOMAIN: z.string().default(''),
+			BETTER_AUTH_COOKIE_PREFIX: str(),
+			SUPERUSER_EMAIL: str(),
+			SUPERUSER_PASSWORD: str(),
+			OAUTH_GOOGLE_CLIENT_ID: z.string().optional(),
+			OAUTH_GOOGLE_CLIENT_SECRET: z.string().optional(),
+			OAUTH_GITHUB_CLIENT_ID: z.string().optional(),
+			OAUTH_GITHUB_CLIENT_SECRET: z.string().optional(),
+			AUTH_PASSWORD_ENABLED: z.enum(['true', 'false']).default('false'),
+			LOG_LEVEL: str().default('info'),
+			HEALTH_HEAP_MAX_MB: num(z.number().positive()).default(300),
+			HEALTH_RSS_MAX_MB: num(z.number().positive()).default(300),
+			HEALTH_DISK_THRESHOLD: num(z.number().min(0).max(1)).default(0.8),
+			HEALTH_DISK_PATH: str().default('/'),
+			BASIC_AUTH_USER: str(),
+			BASIC_AUTH_PASS: str(),
+			REDIS_HOST: str().default('localhost'),
+			REDIS_PORT: num().default(6379),
+			REDIS_USER: z.string().optional(),
+			REDIS_PASSWORD: z.string().optional(),
+			SMTP_HOST: str(),
+			SMTP_PORT: z.enum(['465', '587']),
+			SMTP_SECURE: z.enum(['true', 'false']),
+			SMTP_USER: str(),
+			SMTP_PASSWORD: str(),
+			SMTP_FROM: str(),
+			SMTP_SUPPORT_EMAIL: str(),
+			S3_REGION: str().default('us-east-1'),
+			S3_ENDPOINT: z.string().optional(),
+			S3_BUCKET_NAME: str(),
+			S3_ACCESS_KEY_ID: z.string().optional(),
+			S3_SECRET_ACCESS_KEY: z.string().optional(),
+			RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
+			RATE_LIMIT_TTL: num().default(60_000),
+			RATE_LIMIT_MAX: num().default(120),
+			RATE_LIMIT_AUTH_WINDOW: num().default(10),
+			RATE_LIMIT_AUTH_MAX: num().default(100),
+			RATE_LIMIT_IP_HEADERS: str().default('x-forwarded-for')
+		})
+		.refine(
+			(env) =>
+				!(env.APP_ENV === 'production' && env.AUTH_PASSWORD_ENABLED === 'true'),
+			{
+				message: 'AUTH_PASSWORD_ENABLED must not be true in production',
+				path: ['AUTH_PASSWORD_ENABLED']
+			}
+		);
 
 	export const getVariables = (): Config.Env => ({
 		app: {
@@ -217,7 +236,8 @@ namespace Config {
 			secret: env.BETTER_AUTH_SECRET || '',
 			url: env.BETTER_AUTH_URL || env.SERVER_HOST || '',
 			cookieDomain: env.BETTER_AUTH_COOKIE_DOMAIN || '',
-			cookiePrefix: env.BETTER_AUTH_COOKIE_PREFIX || ''
+			cookiePrefix: env.BETTER_AUTH_COOKIE_PREFIX || '',
+			passwordEnabled: env.AUTH_PASSWORD_ENABLED === 'true'
 		},
 		superuser: {
 			email: env.SUPERUSER_EMAIL || '',
@@ -255,6 +275,10 @@ namespace Config {
 			google: {
 				clientId: env.OAUTH_GOOGLE_CLIENT_ID || '',
 				clientSecret: env.OAUTH_GOOGLE_CLIENT_SECRET || ''
+			},
+			github: {
+				clientId: env.OAUTH_GITHUB_CLIENT_ID || '',
+				clientSecret: env.OAUTH_GITHUB_CLIENT_SECRET || ''
 			}
 		}
 	});

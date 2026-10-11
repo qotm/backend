@@ -89,7 +89,8 @@ export class AppFactory {
 			forgotPassword: vi.fn(),
 			resetPassword: vi.fn(),
 			passwordChanged: vi.fn(),
-			setPassword: vi.fn()
+			setPassword: vi.fn(),
+			magicLink: vi.fn()
 		};
 
 		// In-memory MediaService so uploads never touch real S3. Buffers are kept
