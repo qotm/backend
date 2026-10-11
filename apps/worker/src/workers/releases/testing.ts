@@ -32,6 +32,11 @@ export class TrackedStorage implements Storage {
 		await this.s3.put(key, body, options);
 	}
 
+	async putFile(key: string, path: string, options: PutOptions) {
+		this.written.add(key);
+		await this.s3.putFile(key, path, options);
+	}
+
 	async delete(key: string) {
 		await this.s3.delete(key);
 	}

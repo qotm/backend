@@ -28,3 +28,10 @@ export const PUBLISH_RELEASE = 'publish-release';
  */
 export const SHARE_IMAGES_QUEUE = 'share-images';
 export const RENDER_SHARE_IMAGE = 'render-share-image';
+
+/**
+ * CSV exports. Produced by the API's ExportsModule
+ * (`apps/api/src/exports/jobs.ts`, EXPORTS_QUEUE).
+ */
+export const EXPORTS_QUEUE = 'exports';
+export const EXPORT_QUOTES = 'export-quotes';

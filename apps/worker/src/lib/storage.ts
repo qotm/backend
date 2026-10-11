@@ -1,3 +1,4 @@
+import { createReadStream, statSync } from 'node:fs';
 import {
 	DeleteObjectCommand,
 	GetObjectCommand,
@@ -20,6 +21,8 @@ export interface Storage {
 		body: Uint8Array | string,
 		options: PutOptions
 	): Promise<void>;
+	/** Streams a local file up (the export, without holding it in memory). */
+	putFile(key: string, path: string, options: PutOptions): Promise<void>;
 	get(key: string): Promise<Uint8Array>;
 	delete(key: string): Promise<void>;
 }
@@ -55,6 +58,20 @@ export class S3Storage implements Storage {
 				Bucket: this.bucket,
 				Key: key,
 				Body: body,
+				ContentType: options.contentType,
+				...(options.cacheControl ? { CacheControl: options.cacheControl } : {}),
+				...(options.public ? { ACL: 'public-read' as const } : {})
+			})
+		);
+	}
+
+	async putFile(key: string, path: string, options: PutOptions) {
+		await this.client.send(
+			new PutObjectCommand({
+				Bucket: this.bucket,
+				Key: key,
+				Body: createReadStream(path),
+				ContentLength: statSync(path).size,
 				ContentType: options.contentType,
 				...(options.cacheControl ? { CacheControl: options.cacheControl } : {}),
 				...(options.public ? { ACL: 'public-read' as const } : {})

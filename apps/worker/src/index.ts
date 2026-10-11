@@ -13,7 +13,8 @@ const queueWorkers = [
 	Workers.example,
 	Workers.matching,
 	Workers.releases,
-	Workers.shareImages
+	Workers.shareImages,
+	Workers.csvExports
 ];
 for (const worker of queueWorkers) void worker.run();
 

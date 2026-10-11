@@ -49,6 +49,7 @@ describe('publishRelease', () => {
 		return {
 			put: (...args) => crash('put', () => storage.put(...args)),
 			get: (key) => crash('get', () => storage.get(key)),
+			putFile: (...args) => storage.putFile(...args),
 			delete: (key) => storage.delete(key)
 		};
 	}

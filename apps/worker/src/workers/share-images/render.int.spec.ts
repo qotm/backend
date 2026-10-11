@@ -120,6 +120,7 @@ describe('renderShareImage', () => {
 		const failing: Storage = {
 			put: () => Promise.reject(new Error('storage unavailable')),
 			get: (key) => storage.get(key),
+			putFile: (...args) => storage.putFile(...args),
 			delete: (key) => storage.delete(key)
 		};
 		await expect(

@@ -8,6 +8,8 @@ export default defineConfig({
 		include: ['src/**/*.int.spec.ts'],
 		globals: false,
 		fileParallelism: false,
+		// The export test measures live memory, collecting garbage as it samples.
+		execArgv: ['--expose-gc'],
 		testTimeout: 60_000,
 		hookTimeout: 60_000
 	},

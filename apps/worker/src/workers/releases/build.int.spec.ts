@@ -256,6 +256,7 @@ describe('buildPreview', () => {
 			...storage,
 			put: () => Promise.reject(new Error('storage unavailable')),
 			get: storage.get.bind(storage),
+			putFile: storage.putFile.bind(storage),
 			delete: storage.delete.bind(storage)
 		};
 		await expect(
