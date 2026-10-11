@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { DevicesController } from './controllers';
-import { DevicesService } from './services';
+import { AuthMaintenanceService, DevicesService } from './services';
 
-/** Terminals signed in with `qotm login` (QOT-36). */
+/** Terminals signed in with `qotm login` (QOT-36), and sign-in upkeep (QOT-54). */
 @Module({
 	controllers: [DevicesController],
-	providers: [DevicesService],
+	providers: [DevicesService, AuthMaintenanceService],
 	exports: [DevicesService]
 })
 export class DevicesModule {}
