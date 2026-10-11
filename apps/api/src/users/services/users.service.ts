@@ -3,21 +3,21 @@ import { UserSession } from '@thallesp/nestjs-better-auth';
 import { Prisma } from '@qotm/db/client';
 import { PrismaService } from 'common/services';
 import { ensureExists } from 'common/utils';
-import { hasRole, type RoleInput } from 'lib/access';
+import { hasRole, roles, type RoleInput } from 'lib/access';
 import { PaginatedUserEntity, UserEntity } from '../entity';
 import { UserFilters } from '../dto';
 import { ok } from 'common/entity';
 
 const SU = 'superuser';
 
+const ALL_ROLES = Object.keys(roles);
+
 /**
  * Roles a viewer may see. Superusers are visible only to their own tier —
- * everyone below sees user / moderator / admin.
+ * everyone below sees member / verifier / moderator / admin.
  */
 const visibleRolesFor = (role: RoleInput): string[] =>
-	hasRole(role, SU)
-		? ['user', 'moderator', 'admin', SU]
-		: ['user', 'moderator', 'admin'];
+	hasRole(role, SU) ? ALL_ROLES : ALL_ROLES.filter((name) => name !== SU);
 
 @Injectable()
 export class UsersService {

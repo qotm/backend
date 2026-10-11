@@ -228,7 +228,7 @@ describe('Users', () => {
 				beforeAll(async () => {
 					response = await app.request
 						.get('/v1/users')
-						.query({ role: 'user' })
+						.query({ role: 'member' })
 						.set('Cookie', adminCookie);
 				});
 
@@ -238,7 +238,7 @@ describe('Users', () => {
 
 				it('should only return users with the filtered role', () => {
 					for (const user of response.body.list) {
-						expect(user.role).toBe('user');
+						expect(user.role).toBe('member');
 					}
 				});
 			});

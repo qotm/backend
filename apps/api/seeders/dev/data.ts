@@ -16,7 +16,7 @@ import type {
 /** Development-only password for every sample member. */
 export const DEV_PASSWORD = 'secret';
 
-/** The design's roles. QOT-27 replaces the template roles with these. */
+/** The design's roles (lib/access.ts). */
 export type DesignRole = 'member' | 'verifier' | 'moderator' | 'admin';
 
 export const MEMBERS: {

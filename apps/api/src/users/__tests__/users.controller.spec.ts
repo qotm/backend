@@ -40,7 +40,7 @@ describe('UsersController', () => {
 
 		it('should pass search and role filters through', async () => {
 			const user = Entity.user.build({ role: 'admin' });
-			const filters = { search: 'john', role: 'user', page: 2, limit: 5 };
+			const filters = { search: 'john', role: 'member', page: 2, limit: 5 };
 			const paginated: PaginatedUserEntity = {
 				list: [],
 				total: 0,
@@ -63,7 +63,7 @@ describe('UsersController', () => {
 			const currentUserId = Gen.uuid();
 			const targetId = Gen.uuid();
 			const user = Entity.user.build({ id: currentUserId, role: 'admin' });
-			const target = Entity.user.build({ id: targetId, role: 'user' });
+			const target = Entity.user.build({ id: targetId, role: 'member' });
 			service.getUserById.mockResolvedValue(target);
 
 			const result = await controller.findOne(targetId, {

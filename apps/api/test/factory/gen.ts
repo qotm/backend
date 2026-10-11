@@ -22,7 +22,7 @@ interface PasswordOptions {
 	prefix?: string | undefined;
 }
 
-const DEFAULT_ROLES = ['superuser', 'admin', 'user'];
+const DEFAULT_ROLES = ['superuser', 'admin', 'member'];
 const SAMPLE_ROLES = [
 	...DEFAULT_ROLES,
 	'user_manager',

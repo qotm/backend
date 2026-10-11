@@ -24,7 +24,7 @@ import { CommonModule } from 'common/common.module';
 import { UsersModule } from 'users/users.module';
 import { MediaModule } from 'media/media.module';
 import { AppController } from 'app.controller';
-import { ac, roles } from 'lib/access';
+import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
 import { handleAuthOptions } from 'lib/handle';
 import { OriginBuilder } from 'common/misc';
@@ -139,7 +139,7 @@ import { OriginBuilder } from 'common/misc';
 					},
 					plugins: [
 						admin({
-							defaultRole: 'user',
+							defaultRole: DEFAULT_ROLE,
 							ac,
 							roles
 						}),

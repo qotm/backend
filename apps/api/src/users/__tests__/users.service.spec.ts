@@ -94,7 +94,7 @@ describe('UsersService', () => {
 
 			const callArgs = getCallArgs();
 			expect(callArgs.where.role).toEqual({
-				in: ['user', 'moderator', 'admin']
+				in: ['member', 'verifier', 'moderator', 'admin']
 			});
 		});
 
@@ -111,7 +111,7 @@ describe('UsersService', () => {
 
 			const callArgs = getCallArgs();
 			expect(callArgs.where.role).toEqual({
-				in: ['user', 'moderator', 'admin', 'superuser']
+				in: ['member', 'verifier', 'moderator', 'admin', 'superuser']
 			});
 		});
 
@@ -196,7 +196,7 @@ describe('UsersService', () => {
 			expect(callArgs.where.role).toBe('admin');
 		});
 
-		it('should filter by role when role is "user"', async () => {
+		it('should filter by role when role is "member"', async () => {
 			db.x.user.paginate.mockResolvedValue([
 				[],
 				{ total: 0, currentPage: 1, pageSize: 0, lastPage: 1 }
@@ -204,11 +204,11 @@ describe('UsersService', () => {
 
 			await service.paginate(
 				currentUser,
-				Dto.userFilters.build({ role: 'user' })
+				Dto.userFilters.build({ role: 'member' })
 			);
 
 			const callArgs = getCallArgs();
-			expect(callArgs.where.role).toBe('user');
+			expect(callArgs.where.role).toBe('member');
 		});
 
 		// The security-relevant path: an admin asking for superusers must not get
@@ -226,7 +226,7 @@ describe('UsersService', () => {
 
 			const callArgs = getCallArgs();
 			expect(callArgs.where.role).toEqual({
-				in: ['user', 'moderator', 'admin']
+				in: ['member', 'verifier', 'moderator', 'admin']
 			});
 		});
 
@@ -340,7 +340,7 @@ describe('UsersService', () => {
 		it('should return UserEntity for a valid user', async () => {
 			const targetId = Gen.uuid();
 			db.user.findFirst.mockResolvedValue(
-				Entity.user.build({ id: targetId, role: 'user' })
+				Entity.user.build({ id: targetId, role: 'member' })
 			);
 
 			const result = await service.getUserById(admin, targetId);
@@ -362,7 +362,7 @@ describe('UsersService', () => {
 		it('should query by id', async () => {
 			const targetId = Gen.uuid();
 			db.user.findFirst.mockResolvedValue(
-				Entity.user.build({ id: targetId, role: 'user' })
+				Entity.user.build({ id: targetId, role: 'member' })
 			);
 
 			await service.getUserById(admin, targetId);

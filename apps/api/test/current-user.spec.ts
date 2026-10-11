@@ -101,7 +101,7 @@ describe('Current User', () => {
 				});
 
 				it('should have user role', () => {
-					expect(response.body.role).toBe('user');
+					expect(response.body.role).toBe('member');
 				});
 			});
 

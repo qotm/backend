@@ -90,7 +90,7 @@ class Seeder {
 				name: 'Test User',
 				email: 'test.user@example.com',
 				password: 'secret',
-				role: 'user' as const
+				role: 'member' as const
 			}
 		];
 

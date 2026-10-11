@@ -4,7 +4,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin, openAPI } from 'better-auth/plugins';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@qotm/db/client';
-import { ac, roles } from './access';
+import { DEFAULT_ROLE, ac, roles } from './access';
 import { AUTH_RATE_LIMIT_RULES } from './rate-limit';
 import { OriginBuilder } from '../common/misc';
 import { handleAuthOptions } from './handle';
@@ -68,7 +68,7 @@ export const auth = betterAuth({
 	},
 	plugins: [
 		admin({
-			defaultRole: 'user',
+			defaultRole: DEFAULT_ROLE,
 			ac,
 			roles
 		}),

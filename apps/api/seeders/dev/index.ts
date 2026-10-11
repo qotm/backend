@@ -19,7 +19,6 @@ import {
 	REPORTS,
 	SOURCES,
 	VERIFIER,
-	type DesignRole,
 	type SampleQuote
 } from './data';
 
@@ -28,14 +27,6 @@ import {
  * record is found by its natural key (email, slug, public id, report number,
  * version) and skipped when it exists, so `yarn db:seed` can be re-run.
  */
-
-// Until QOT-27 adds the design's roles, map them onto the template's.
-const TEMPLATE_ROLE: Record<DesignRole, 'user' | 'admin'> = {
-	member: 'user',
-	verifier: 'admin',
-	moderator: 'admin',
-	admin: 'admin'
-};
 
 const DAY = 24 * 60 * 60 * 1000;
 const START = Date.parse('2026-07-01T09:00:00Z');
@@ -66,7 +57,7 @@ async function seedMembers(db: PrismaClient): Promise<Ids> {
 					name: member.name,
 					email,
 					password: DEV_PASSWORD,
-					role: TEMPLATE_ROLE[member.role]
+					role: member.role
 				}
 			});
 			user = await db.user.update({

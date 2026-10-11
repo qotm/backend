@@ -18,5 +18,5 @@ export const TEST_USER = {
 	name: 'Test User',
 	email: 'test.user@example.com',
 	password: 'secret',
-	role: 'user'
+	role: 'member'
 };
