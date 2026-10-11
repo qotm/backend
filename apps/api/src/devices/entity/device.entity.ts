@@ -9,7 +9,14 @@ export const DeviceEntity = z
 		authorizedAt: dateTime(),
 		lastSyncAt: dateTime().nullable(),
 		datasetVersion: z.string().nullable().meta({ example: 'v2026.08.3' }),
-		revokedAt: dateTime().nullable()
+		revokedAt: dateTime().nullable(),
+		/** The terminal this request comes from (Settings lists all of them). */
+		current: z.boolean().optional()
 	})
 	.meta({ id: 'DeviceEntity' });
 export type DeviceEntity = z.input<typeof DeviceEntity>;
+
+export const DeviceListEntity = z
+	.object({ list: z.array(DeviceEntity) })
+	.meta({ id: 'DeviceListEntity' });
+export type DeviceListEntity = z.input<typeof DeviceListEntity>;

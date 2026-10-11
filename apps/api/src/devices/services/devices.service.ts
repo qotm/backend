@@ -1,7 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'common/services';
 import { DATASET_VERSION, type RegisterDevice } from '../dto';
-import type { DeviceEntity } from '../entity';
+import type { DeviceEntity, DeviceListEntity } from '../entity';
 
 const SELECT = {
 	id: true,
@@ -48,6 +48,46 @@ export class DevicesService {
 				data: { revokedAt: new Date() }
 			}),
 			this.db.session.deleteMany({ where: { id: sessionId } })
+		]);
+	}
+
+	/** Settings › Terminals: every terminal the member signed in, newest first. */
+	async list(
+		userId: string,
+		currentSessionId?: string
+	): Promise<DeviceListEntity> {
+		const rows = await this.db.device.findMany({
+			where: { userId },
+			orderBy: [
+				{ revokedAt: { sort: 'desc', nulls: 'first' } },
+				{ authorizedAt: 'desc' }
+			],
+			select: { ...SELECT, sessionId: true }
+		});
+		return {
+			list: rows.map(({ sessionId, ...device }): DeviceEntity => ({
+				...device,
+				current: Boolean(currentSessionId) && sessionId === currentSessionId
+			}))
+		};
+	}
+
+	/**
+	 * Revokes one of the member's terminals from Settings: it stops syncing
+	 * the account (its token ends) and keeps its local quotes and dataset.
+	 * Someone else's terminal is a 404.
+	 */
+	async revoke(userId: string, id: string) {
+		const device = await this.db.device.findFirst({ where: { id, userId } });
+		if (!device) throw new NotFoundException('Device not found');
+		await this.db.$transaction([
+			this.db.device.update({
+				where: { id },
+				data: { revokedAt: device.revokedAt ?? new Date() }
+			}),
+			this.db.session.deleteMany({
+				where: { id: device.sessionId ?? '__none__' }
+			})
 		]);
 	}
 
