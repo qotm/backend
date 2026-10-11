@@ -77,7 +77,7 @@ describe('Users', () => {
 		});
 
 		it('documents the list filters as query parameters', () => {
-			const names = doc.paths['/v1/users'].get.parameters.map(
+			const names = doc.paths['/v1/admin/users'].get.parameters.map(
 				(p: { name: string }) => p.name
 			);
 			expect(names).toEqual(
@@ -87,19 +87,21 @@ describe('Users', () => {
 
 		it('points the list response at PaginatedUserEntity', () => {
 			const { schema } =
-				doc.paths['/v1/users'].get.responses['200'].content['application/json'];
+				doc.paths['/v1/admin/users'].get.responses['200'].content[
+					'application/json'
+				];
 			expect(schema.$ref).toBe('#/components/schemas/PaginatedUserEntity');
 		});
 	});
 
 	describe('v1', () => {
-		describe('GET: /v1/users', () => {
+		describe('GET: /v1/admin/users', () => {
 			describe('as superuser', () => {
 				let response: Response;
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.set('Cookie', superuserCookie);
 				});
 
@@ -144,7 +146,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.set('Cookie', adminCookie);
 				});
 
@@ -173,7 +175,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.set('Cookie', userCookie);
 				});
 
@@ -186,7 +188,7 @@ describe('Users', () => {
 				let response: Response;
 
 				beforeAll(async () => {
-					response = await app.request.get('/v1/users');
+					response = await app.request.get('/v1/admin/users');
 				});
 
 				it('should return 401', () => {
@@ -199,7 +201,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ search: TEST_USER.name })
 						.set('Cookie', adminCookie);
 				});
@@ -227,7 +229,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ role: 'member' })
 						.set('Cookie', adminCookie);
 				});
@@ -248,7 +250,7 @@ describe('Users', () => {
 			describe('with invalid query parameters', () => {
 				it('rejects a search shorter than three characters', async () => {
 					const response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ search: 'ab' })
 						.set('Cookie', adminCookie);
 					expect(response.status).toBe(400);
@@ -259,7 +261,7 @@ describe('Users', () => {
 
 				it('rejects a non-numeric page', async () => {
 					const response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ page: 'two' })
 						.set('Cookie', adminCookie);
 					expect(response.status).toBe(400);
@@ -268,7 +270,7 @@ describe('Users', () => {
 
 				it('rejects a role no user holds', async () => {
 					const response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ role: 'ghost' })
 						.set('Cookie', adminCookie);
 					expect(response.status).toBe(400);
@@ -279,7 +281,7 @@ describe('Users', () => {
 
 				it('treats a blank search as no search', async () => {
 					const response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ search: '' })
 						.set('Cookie', adminCookie);
 					expect(response.status).toBe(200);
@@ -291,7 +293,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users')
+						.get('/v1/admin/users')
 						.query({ page: 1, limit: 1 })
 						.set('Cookie', adminCookie);
 				});
@@ -313,13 +315,13 @@ describe('Users', () => {
 			});
 		});
 
-		describe('GET: /v1/users/:id', () => {
+		describe('GET: /v1/admin/users/:id', () => {
 			describe('as superuser', () => {
 				let response: Response;
 
 				beforeAll(async () => {
 					response = await app.request
-						.get(`/v1/users/${userId}`)
+						.get(`/v1/admin/users/${userId}`)
 						.set('Cookie', superuserCookie);
 				});
 
@@ -342,7 +344,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get(`/v1/users/${userId}`)
+						.get(`/v1/admin/users/${userId}`)
 						.set('Cookie', adminCookie);
 				});
 
@@ -361,7 +363,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get(`/v1/users/${adminId}`)
+						.get(`/v1/admin/users/${adminId}`)
 						.set('Cookie', userCookie);
 				});
 
@@ -374,7 +376,7 @@ describe('Users', () => {
 				let response: Response;
 
 				beforeAll(async () => {
-					response = await app.request.get(`/v1/users/${userId}`);
+					response = await app.request.get(`/v1/admin/users/${userId}`);
 				});
 
 				it('should return 401', () => {
@@ -387,7 +389,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get(`/v1/users/${adminId}`)
+						.get(`/v1/admin/users/${adminId}`)
 						.set('Cookie', adminCookie);
 				});
 
@@ -401,7 +403,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get(`/v1/users/${superuserId}`)
+						.get(`/v1/admin/users/${superuserId}`)
 						.set('Cookie', adminCookie);
 				});
 
@@ -415,7 +417,7 @@ describe('Users', () => {
 
 				beforeAll(async () => {
 					response = await app.request
-						.get('/v1/users/00000000-0000-0000-0000-000000000000')
+						.get('/v1/admin/users/00000000-0000-0000-0000-000000000000')
 						.set('Cookie', adminCookie);
 				});
 

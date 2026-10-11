@@ -11,13 +11,13 @@ import { UsersService } from '../services';
 import { UserEntity, PaginatedUserEntity } from '../entity';
 import { UserFilters } from '../dto';
 
-@ApiTags('Users')
-@Controller({ path: 'users', version: '1' })
+@ApiTags('Admin · Users')
+@Controller({ path: 'admin/users', version: '1' })
 export class UsersController {
 	constructor(private service: UsersService) {}
 
 	@Get()
-	@Op('users', '/v1/users', 'Get all users')
+	@Op('admin/users', '/v1/admin/users', 'Get all users')
 	@Returns(PaginatedUserEntity)
 	@UserPermissions('list')
 	findAll(
@@ -28,7 +28,7 @@ export class UsersController {
 	}
 
 	@Get(':id')
-	@Op('users/:id', '/v1/users/:id', 'Get user by ID')
+	@Op('admin/users/:id', '/v1/admin/users/:id', 'Get user by ID')
 	@IdParam()
 	@ApiBadRequestResponse()
 	@Returns(UserEntity)
