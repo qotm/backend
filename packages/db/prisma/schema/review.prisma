@@ -1,0 +1,72 @@
+model Report {
+  id         String       @id(map: "reports_pk") @default(cuid())
+  /// Shown as `r_` and four digits: 412 → `r_0412`.
+  number     Int          @default(autoincrement())
+  quoteId    String       @map("quote_id")
+  /// Null once the reporter's account is deleted.
+  reporterId String?      @map("reporter_id")
+  reason     ReportReason
+  details    String?      @db.VarChar(2000)
+  status     ReportStatus @default(SUBMITTED)
+  resolvedAt DateTime?    @map("resolved_at")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  quote     Quote            @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "reports_quote_fk")
+  reporter  User?            @relation("ReportReporter", fields: [reporterId], references: [id], onDelete: SetNull, map: "reports_reporter_fk")
+  decisions ReviewDecision[]
+
+  @@unique([number], map: "reports_number_idx")
+  @@index([status, createdAt], map: "reports_status_created_at_idx")
+  @@index([quoteId], map: "reports_quote_id_idx")
+  @@index([reporterId], map: "reports_reporter_id_idx")
+  @@map("reports")
+}
+
+/// A verifier's, moderator's or curator's decision on a quote, or on a report
+/// about it. The note is shown to the submitter.
+model ReviewDecision {
+  id        String        @id(map: "review_decisions_pk") @default(cuid())
+  kind      ReviewKind
+  quoteId   String        @map("quote_id")
+  /// Set when the decision answers a report.
+  reportId  String?       @map("report_id")
+  outcome   ReviewOutcome
+  note      String?       @db.VarChar(1000)
+  /// Curation only: each checklist item's key and whether it was ticked.
+  checklist Json?
+  actorId   String?       @map("actor_id")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  quote  Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "review_decisions_quote_fk")
+  report Report? @relation(fields: [reportId], references: [id], onDelete: Cascade, map: "review_decisions_report_fk")
+  actor  User?   @relation("ReviewActor", fields: [actorId], references: [id], onDelete: SetNull, map: "review_decisions_actor_fk")
+
+  @@index([quoteId, createdAt], map: "review_decisions_quote_id_created_at_idx")
+  @@index([reportId], map: "review_decisions_report_id_idx")
+  @@index([actorId], map: "review_decisions_actor_id_idx")
+  @@index([kind, createdAt], map: "review_decisions_kind_created_at_idx")
+  @@map("review_decisions")
+}
+
+/// A possible match the originality / duplicate check found for a quote.
+model MatchResult {
+  id             String      @id(map: "match_results_pk") @default(cuid())
+  /// The quote that was checked.
+  quoteId        String      @map("quote_id")
+  matchedQuoteId String      @map("matched_quote_id")
+  method         MatchMethod
+  /// Similarity, 0–1.
+  score          Float       @db.Real
+  /// A moderator looked and found it is not a match.
+  dismissedAt    DateTime?   @map("dismissed_at")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  quote        Quote @relation("MatchChecked", fields: [quoteId], references: [id], onDelete: Cascade, map: "match_results_quote_fk")
+  matchedQuote Quote @relation("MatchFound", fields: [matchedQuoteId], references: [id], onDelete: Cascade, map: "match_results_matched_quote_fk")
+
+  /// One row per pair and method, so re-running the check updates in place.
+  @@unique([quoteId, matchedQuoteId, method], map: "match_results_pair_idx")
+  @@index([matchedQuoteId], map: "match_results_matched_quote_id_idx")
+  @@map("match_results")
+}

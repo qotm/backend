@@ -36,6 +36,10 @@ model Quote {
   likes           Like[]
   favorites       Favorite[]
   recommendations Recommendation[]
+  reports         Report[]
+  reviews         ReviewDecision[]
+  matches         MatchResult[]    @relation("MatchChecked")
+  matchedBy       MatchResult[]    @relation("MatchFound")
 
   @@unique([publicId], map: "quotes_public_id_idx")
   @@index([status, publishedAt], map: "quotes_status_published_at_idx")

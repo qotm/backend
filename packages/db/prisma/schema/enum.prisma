@@ -46,3 +46,53 @@ enum QuoteStatus {
   REJECTED
   WITHDRAWN
 }
+
+/// What a report says is wrong (the report dialog's choices).
+enum ReportReason {
+  ATTRIBUTION
+  CONTENT
+  ORIGINALITY
+  DUPLICATE
+  OTHER
+}
+
+/// Where a report is. How it ended is its ReviewDecision.
+enum ReportStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  /// The quote is marked disputed while the report is investigated.
+  DISPUTED
+  RESOLVED
+}
+
+enum ReviewKind {
+  VERIFICATION
+  MODERATION
+  CURATION
+}
+
+/// A reviewer's decision. Which kind allows which is in
+/// apps/api/src/review/decisions.ts.
+enum ReviewOutcome {
+  // verification
+  VERIFY
+  NEEDS_EVIDENCE
+  REJECT
+  // curation
+  CURATE
+  KEEP_OUT
+  // moderation
+  PUBLISH
+  MARK_DISPUTED
+  WITHDRAW
+}
+
+/// How a possible match was found. It flags for review; it never decides
+/// authorship.
+enum MatchMethod {
+  /// Identical after normalising case, punctuation and whitespace.
+  EXACT
+  FUZZY
+  /// Same attributed author and close wording.
+  AUTHOR
+}

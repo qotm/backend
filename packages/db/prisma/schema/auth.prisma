@@ -36,6 +36,8 @@ model User {
   likes           Like[]
   favorites       Favorite[]
   recommendations Recommendation[]
+  reports         Report[]         @relation("ReportReporter")
+  reviews         ReviewDecision[] @relation("ReviewActor")
 
   @@unique([email], map: "user_email_idx")
   @@unique([handle], map: "user_handle_idx")
