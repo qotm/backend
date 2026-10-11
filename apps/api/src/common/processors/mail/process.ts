@@ -9,6 +9,7 @@ import PasswordChanged from '@emails/password-changed';
 import ResetPassword from '@emails/reset-password';
 import SetPassword from '@emails/set-password';
 import MagicLink from '@emails/magic-link';
+import ReviewFinished, { REVIEW_COPY } from '@emails/review-finished';
 import {
 	MailJob,
 	EmailGlobalProps,
@@ -17,7 +18,8 @@ import {
 	WelcomeData,
 	SetPasswordData,
 	ForgotPasswordData,
-	MagicLinkData
+	MagicLinkData,
+	ReviewFinishedData
 } from 'common/types';
 
 type Options = Omit<ISendMailOptions, 'from'>;
@@ -220,6 +222,21 @@ class MagicLinkProcess extends ProcessAbstract<MagicLinkData> {
 	}
 }
 
+class ReviewFinishedProcess extends ProcessAbstract<ReviewFinishedData> {
+	get subject() {
+		return REVIEW_COPY[this.job.data.outcome].subject;
+	}
+	preview = 'A review of your quote finished.';
+
+	process(): Options {
+		const { subject, preview, job } = this;
+		const html = render(
+			ReviewFinished({ ...this.globals, subject, preview, ...job.data })
+		);
+		return { to: job.data.to, subject, html };
+	}
+}
+
 export class ProcessFactory {
 	private static jobs = {
 		[MailJob.Activation]: ActivationProcess,
@@ -229,7 +246,8 @@ export class ProcessFactory {
 		[MailJob.ResetPassword]: ResetPasswordProcess,
 		[MailJob.PasswordChanged]: PasswordChangedProcess,
 		[MailJob.SetPassword]: SetPasswordProcess,
-		[MailJob.MagicLink]: MagicLinkProcess
+		[MailJob.MagicLink]: MagicLinkProcess,
+		[MailJob.ReviewFinished]: ReviewFinishedProcess
 	};
 
 	private static getProcess(name: MailJob) {

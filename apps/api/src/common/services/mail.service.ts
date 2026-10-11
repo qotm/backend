@@ -8,7 +8,8 @@ import {
 	WelcomeData,
 	ForgotPasswordData,
 	SetPasswordData,
-	MagicLinkData
+	MagicLinkData,
+	ReviewFinishedData
 } from 'common/types';
 
 @Injectable()
@@ -48,6 +49,15 @@ export class MailService {
 		this.mail.add(MailJob.MagicLink, data, {
 			attempts: 5,
 			backoff: { type: 'exponential', delay: 5_000 }
+		});
+	};
+
+	/** A review of the member's submission finished (they opted in). */
+	reviewFinished = (data: ReviewFinishedData) => {
+		return this.mail.add(MailJob.ReviewFinished, data, {
+			attempts: 3,
+			backoff: { type: 'exponential', delay: 30_000 },
+			removeOnFail: false
 		});
 	};
 }

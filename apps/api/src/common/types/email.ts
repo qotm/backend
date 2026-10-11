@@ -6,7 +6,8 @@ export enum MailJob {
 	ResetPassword = 'reset-password',
 	SetPassword = 'set-password',
 	Welcome = 'welcome',
-	MagicLink = 'magic-link'
+	MagicLink = 'magic-link',
+	ReviewFinished = 'review-finished'
 }
 
 export interface EmailGlobalProps {
@@ -60,4 +61,26 @@ export interface MagicLinkData {
 	url: string;
 	/** How long the link works, for the copy ("expires in 10 minutes"). */
 	expiresInMinutes: number;
+}
+
+/** A review decision on a member's submission (QOT-53). */
+export type ReviewFinishedOutcome =
+	| 'VERIFY'
+	| 'NEEDS_EVIDENCE'
+	| 'REJECT'
+	| 'PUBLISH'
+	| 'MARK_DISPUTED'
+	| 'WITHDRAW'
+	| 'CURATE'
+	| 'KEEP_OUT';
+
+export interface ReviewFinishedData {
+	to: string;
+	handle: string;
+	outcome: ReviewFinishedOutcome;
+	quote: { id: string; text: string };
+	/** The reviewer's note, as they wrote it; the template escapes it. */
+	note: string | null;
+	/** The quote's page. */
+	url: string;
 }

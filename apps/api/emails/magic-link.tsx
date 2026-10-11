@@ -24,8 +24,8 @@ const MagicLink = ({
 				{url}
 			</Text>
 			<Text className={CN.text}>
-				If you did not ask to sign in, ignore this email: nobody can sign in
-				as you without it.
+				If you did not ask to sign in, ignore this email: nobody can sign in as
+				you without it.
 			</Text>
 		</MainLayout>
 	);

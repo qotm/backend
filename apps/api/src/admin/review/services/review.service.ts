@@ -12,7 +12,6 @@ import {
 	ReviewKind,
 	ReviewOutcome
 } from '@qotm/db/enums';
-import { PrismaService } from 'common/services';
 import { recordAudit, type AuditAction, type AuditEntry } from 'audit';
 import { CARD, toCard } from 'quotes/cards';
 import { PUBLIC_ID_PATTERN } from 'quotes/public-id';
@@ -25,6 +24,12 @@ import {
 	type ChecklistItem
 } from 'review';
 import { ShareImagesService } from 'share/services';
+import {
+	CustomConfigService,
+	LoggerService,
+	MailService,
+	PrismaService
+} from 'common/services';
 import type {
 	CorrectQuote,
 	CurationDecision,
@@ -128,7 +133,10 @@ export class ReviewService {
 	constructor(
 		private db: PrismaService,
 		private quotes: QuotesService,
-		private share: ShareImagesService
+		private share: ShareImagesService,
+		private mail: MailService,
+		private config: CustomConfigService,
+		private logger: LoggerService
 	) {}
 
 	/** A queue, longest-waiting first ("waiting" = since the quote's last move). */
@@ -268,6 +276,7 @@ export class ReviewService {
 						: undefined
 			});
 		}, ISOLATION);
+		await this.notify(actor, publicId, rule.outcome, input.note);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -297,6 +306,7 @@ export class ReviewService {
 				});
 			}
 		}, ISOLATION);
+		await this.notify(actor, publicId, rule.outcome, input.note);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -349,6 +359,14 @@ export class ReviewService {
 				checklist: input.checklist
 			});
 		}, ISOLATION);
+		await this.notify(
+			actor,
+			publicId,
+			input.decision === 'curate'
+				? ReviewOutcome.CURATE
+				: ReviewOutcome.KEEP_OUT,
+			input.note
+		);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -588,6 +606,52 @@ export class ReviewService {
 		// A new wording or credit is a new share-image revision: render it now.
 		await this.share.rerender(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
+	}
+
+	/**
+	 * Emails the contributor that a review of their quote finished (QOT-53):
+	 * after the decision has committed, only if they kept review emails on,
+	 * never for a reviewer's own quote. Sent through the `mail` queue; a
+	 * failure to queue is logged and never undoes the decision.
+	 */
+	private async notify(
+		actor: Actor,
+		publicId: string,
+		outcome: ReviewOutcome,
+		note: string | undefined | null
+	) {
+		try {
+			const quote = await this.db.quote.findUnique({
+				where: { publicId },
+				select: {
+					text: true,
+					type: true,
+					contributor: {
+						select: { id: true, email: true, handle: true, emailOnReview: true }
+					}
+				}
+			});
+			const to = quote?.contributor;
+			if (
+				!quote ||
+				!to ||
+				!to.emailOnReview ||
+				to.id === actor.id ||
+				quote.type === QuoteType.PRIVATE
+			) {
+				return;
+			}
+			await this.mail.reviewFinished({
+				to: to.email,
+				handle: to.handle,
+				outcome,
+				quote: { id: publicId, text: quote.text },
+				note: note || null,
+				url: `${this.config.app.frontendHost}/q/${publicId.replace(/^q_/, '')}`
+			});
+		} catch (error) {
+			this.logger.warn({ error, publicId }, 'Could not queue the review email');
+		}
 	}
 
 	/** The move, the ReviewDecision and the audit row, in the caller's transaction. */
