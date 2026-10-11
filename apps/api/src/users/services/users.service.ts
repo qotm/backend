@@ -1,11 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+	ConflictException,
+	Injectable,
+	NotFoundException
+} from '@nestjs/common';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { Prisma } from '@qotm/db/client';
 import { PrismaService } from 'common/services';
 import { ensureExists } from 'common/utils';
-import { hasRole, roles, type RoleInput } from 'lib/access';
+import { recordAudit } from 'audit';
+import { DEFAULT_ROLE, hasRole, roles, type RoleInput } from 'lib/access';
+import { CURATED_STATUSES } from 'quotes/visibility';
 import { PaginatedUserEntity, UserEntity } from '../entity';
-import { UserFilters } from '../dto';
+import { UserFilters, type SetRole } from '../dto';
+import { PUBLIC_CONTRIBUTION } from './profiles.service';
+
+type AssignableRole = SetRole['role'];
 import { ok } from 'common/entity';
 
 const SU = 'superuser';
@@ -36,7 +45,8 @@ export class UsersService {
 			const search = filters.search.trim();
 			where.OR = [
 				{ email: { contains: search, mode: 'insensitive' } },
-				{ name: { contains: search, mode: 'insensitive' } }
+				{ name: { contains: search, mode: 'insensitive' } },
+				{ handle: { contains: search.replace(/^@/, ''), mode: 'insensitive' } }
 			];
 		}
 
@@ -54,11 +64,95 @@ export class UsersService {
 
 		const [list, meta] = await this.db.x.user.paginate({
 			where,
+			orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
 			page: filters.page,
 			limit: filters.limit
 		});
 
-		return { list, ...meta };
+		const ids = list.map((u) => u.id);
+		const count = async (where: Prisma.QuoteWhereInput) => {
+			const rows = await this.db.quote.groupBy({
+				by: ['contributorId'],
+				// The profile's own definition, for the whole page of users at once.
+				where: {
+					...PUBLIC_CONTRIBUTION(''),
+					contributorId: { in: ids },
+					...where
+				},
+				_count: { _all: true }
+			});
+			return new Map(rows.map((r) => [r.contributorId, r._count._all]));
+		};
+		const [contributions, curated] = ids.length
+			? await Promise.all([
+					count({}),
+					count({ status: { in: [...CURATED_STATUSES] } })
+				])
+			: [new Map(), new Map()];
+
+		return {
+			list: list.map((u) => ({
+				...u,
+				contributions: contributions.get(u.id) ?? 0,
+				curated: curated.get(u.id) ?? 0
+			})),
+			...meta
+		};
+	}
+
+	/**
+	 * Assigns a role (`member`, `verifier`, `moderator` or `admin`; never
+	 * `superuser`), audited as "member → moderator". The superuser's own role
+	 * is fixed, and the last admin cannot be demoted: the admins' rows are
+	 * locked first, so two admins demoting each other at once cannot both
+	 * succeed. Their sessions read the role from the database, so the change
+	 * applies on their next request.
+	 */
+	async setRole(
+		viewer: UserSession['user'],
+		id: string,
+		role: AssignableRole
+	): Promise<UserEntity> {
+		await this.db.$transaction(
+			async (tx) => {
+				const admins = await tx.$queryRaw<{ id: string; role: string }[]>`
+					SELECT id, role FROM "user" WHERE role LIKE '%admin%' FOR UPDATE`;
+				const target = await tx.user.findUnique({ where: { id } });
+				// 404, not 403: a hidden user (a superuser, to an admin) is not
+				// confirmed to exist.
+				if (
+					!target ||
+					!visibleRolesFor(viewer.role).includes(target.role ?? DEFAULT_ROLE)
+				) {
+					throw new NotFoundException();
+				}
+				if (hasRole(target.role, SU)) {
+					throw new ConflictException('The superuser’s role cannot change');
+				}
+				const from = target.role ?? DEFAULT_ROLE;
+				if (from === role) return;
+
+				const adminCount = admins.filter(
+					(u) => hasRole(u.role, 'admin') && !hasRole(u.role, SU)
+				).length;
+				if (hasRole(from, 'admin') && adminCount <= 1) {
+					throw new ConflictException('The last admin cannot be demoted');
+				}
+
+				await tx.user.update({ where: { id }, data: { role } });
+				await recordAudit(tx, {
+					actor: {
+						id: viewer.id,
+						handle: (viewer as typeof viewer & { handle: string }).handle
+					},
+					action: 'user.role_changed',
+					target: { type: 'user', id: target.handle },
+					note: `${from} → ${role}`
+				});
+			},
+			{ isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted }
+		);
+		return this.db.user.findUniqueOrThrow({ where: { id } });
 	}
 
 	/**

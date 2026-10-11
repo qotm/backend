@@ -69,7 +69,9 @@ describe('UserEntity', () => {
 
 describe('PaginatedUserEntity', () => {
 	it('carries the pagination meta and serializes each item', () => {
-		const users = Entity.user.buildList(3);
+		const users = Entity.user
+			.buildList(3)
+			.map((u) => ({ ...u, contributions: 2, curated: 1 }));
 		const body = PaginatedUserEntity.parse({
 			list: users,
 			total: 10,

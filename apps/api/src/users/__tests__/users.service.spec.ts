@@ -38,8 +38,13 @@ describe('UsersService', () => {
 				users,
 				{ total: 3, currentPage: 1, pageSize: 3, lastPage: 1 }
 			]);
+			db.quote.groupBy.mockResolvedValue([
+				{ contributorId: users[0].id, _count: { _all: 4 } }
+			] as never);
 
 			const result = await service.paginate(currentUser, {});
+			expect(result.list[0]).toMatchObject({ contributions: 4, curated: 4 });
+			expect(result.list[1]).toMatchObject({ contributions: 0, curated: 0 });
 			expect(PaginatedUserEntity.safeParse(result).success).toBe(true);
 			expect(result.list).toHaveLength(3);
 			expect(result.total).toBe(3);
@@ -115,7 +120,7 @@ describe('UsersService', () => {
 			});
 		});
 
-		it('should add search filter for name and email when search is provided', async () => {
+		it('should add search filter for name, email and handle when search is provided', async () => {
 			db.x.user.paginate.mockResolvedValue([
 				[],
 				{ total: 0, currentPage: 1, pageSize: 0, lastPage: 1 }
@@ -129,7 +134,8 @@ describe('UsersService', () => {
 			const callArgs = getCallArgs();
 			expect(callArgs.where.OR).toEqual([
 				{ email: { contains: 'john', mode: 'insensitive' } },
-				{ name: { contains: 'john', mode: 'insensitive' } }
+				{ name: { contains: 'john', mode: 'insensitive' } },
+				{ handle: { contains: 'john', mode: 'insensitive' } }
 			]);
 		});
 
@@ -147,7 +153,8 @@ describe('UsersService', () => {
 			const callArgs = getCallArgs();
 			expect(callArgs.where.OR).toEqual([
 				{ email: { contains: 'john', mode: 'insensitive' } },
-				{ name: { contains: 'john', mode: 'insensitive' } }
+				{ name: { contains: 'john', mode: 'insensitive' } },
+				{ handle: { contains: 'john', mode: 'insensitive' } }
 			]);
 		});
 

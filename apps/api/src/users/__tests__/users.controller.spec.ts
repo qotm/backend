@@ -24,7 +24,9 @@ describe('UsersController', () => {
 			const user = Entity.user.build({ role: 'admin' });
 			const filters = { page: 1, limit: 10 };
 			const paginated: PaginatedUserEntity = {
-				list: Entity.user.buildList(2),
+				list: Entity.user
+					.buildList(2)
+					.map((u) => ({ ...u, contributions: 0, curated: 0 })),
 				total: 2,
 				currentPage: 1,
 				lastPage: 1,

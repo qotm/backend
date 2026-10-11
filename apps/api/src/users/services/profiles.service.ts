@@ -15,7 +15,9 @@ import type {
 } from '../entity';
 
 /** What a profile shows of someone's quotes: public submissions only. */
-const PUBLIC_CONTRIBUTION = (userId: string): Prisma.QuoteWhereInput => ({
+export const PUBLIC_CONTRIBUTION = (
+	userId: string
+): Prisma.QuoteWhereInput => ({
 	contributorId: userId,
 	type: { not: QuoteType.PRIVATE },
 	status: { notIn: [...NOT_PUBLIC] }

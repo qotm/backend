@@ -30,7 +30,19 @@ export const UserEntity = z
 /** What a service hands back; the schema turns it into the response. */
 export type UserEntity = z.input<typeof UserEntity>;
 
-export const PaginatedUserEntity = paginated(UserEntity, 'PaginatedUserEntity');
+/** A row of the admin users table: the user plus their contribution counts. */
+export const AdminUserEntity = UserEntity.extend({
+	/** Public quotes they contributed (their profile's count). */
+	contributions: z.number().int().meta({ example: 31 }),
+	/** Of those, curated or shipped in a release. */
+	curated: z.number().int().meta({ example: 6 })
+}).meta({ id: 'AdminUserEntity' });
+export type AdminUserEntity = z.input<typeof AdminUserEntity>;
+
+export const PaginatedUserEntity = paginated(
+	AdminUserEntity,
+	'PaginatedUserEntity'
+);
 export type PaginatedUserEntity = z.input<typeof PaginatedUserEntity>;
 
 // The session user: profile and preference fields beyond `handle` are not on
