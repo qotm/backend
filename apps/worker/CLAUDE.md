@@ -15,11 +15,15 @@ It is the `@qotm/worker` workspace of the backend monorepo (see
 yarn dev            # run with the telemetry preload (tsx)
 yarn dev:watch      # same, restarting on change
 yarn typecheck && yarn lint && yarn format:check
+yarn test           # unit tests (Vitest)
 yarn build          # tsc → dist/
 yarn db:generate    # rebuild the shared @qotm/db client (the API's db:migrate does this too)
 ```
 
-There is no test script. CI runs `turbo run lint typecheck test build` from the
+`yarn test` runs the unit tests (Vitest, `src/**/*.spec.ts`). They pass their
+database in as a parameter, so they need no Postgres or Redis: keep job logic
+in a function that takes `db` (see `workers/matching/check.ts`) and the
+handler a thin wrapper around it. CI runs `turbo run lint typecheck test build` from the
 backend root, and the image is built from there too
 (`docker build -f apps/worker/Dockerfile .`), so the root `yarn.lock` and
 `.yarnrc.yml` must be committed.

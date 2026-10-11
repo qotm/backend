@@ -4061,6 +4061,7 @@ __metadata:
     tsx: "npm:^4.22.4"
     typescript: "npm:^6.0.3"
     typescript-eslint: "npm:^8.62.1"
+    vitest: "npm:4.1.11"
     yargs: "npm:^18.0.0"
   languageName: unknown
   linkType: soft
@@ -15943,7 +15944,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"vitest@npm:^4.1.11":
+"vitest@npm:4.1.11, vitest@npm:^4.1.11":
   version: 4.1.11
   resolution: "vitest@npm:4.1.11"
   dependencies:

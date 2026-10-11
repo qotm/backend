@@ -2,7 +2,8 @@ import {
 	BadRequestException,
 	ConflictException,
 	Injectable,
-	NotFoundException
+	NotFoundException,
+	type OnModuleInit
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
@@ -26,6 +27,7 @@ import type { MyQuoteEntity, MyQuotesEntity } from '../entity';
 
 export const MATCHING_QUEUE = 'matching';
 export const CHECK_ORIGINALITY = 'check-originality';
+export const RECHECK_ORIGINALS = 'recheck-originals';
 
 /** Waiting on someone: the "in review" tab, and what a contributor may withdraw. */
 const IN_REVIEW: readonly S[] = [
@@ -63,12 +65,28 @@ const MINE = {
 type Tx = Prisma.TransactionClient;
 
 @Injectable()
-export class SubmissionsService {
+export class SubmissionsService implements OnModuleInit {
 	constructor(
 		private db: PrismaService,
 		private quotes: QuotesService,
 		@InjectQueue(MATCHING_QUEUE) private matching: Queue
 	) {}
+
+	/**
+	 * The nightly originality re-check of published originals (the worker's
+	 * `matching` consumer). Upserting is idempotent, so every boot may do it.
+	 */
+	async onModuleInit() {
+		await this.matching.upsertJobScheduler(
+			'nightly-originality-recheck',
+			{ pattern: '0 3 * * *', tz: 'UTC' },
+			{
+				name: RECHECK_ORIGINALS,
+				data: {},
+				opts: { attempts: 3, backoff: { type: 'exponential', delay: 60_000 } }
+			}
+		);
+	}
 
 	/**
 	 * A new quote. Canonical ones go to verification, originals to the
