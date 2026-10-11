@@ -55,7 +55,7 @@ type Tx = Prisma.TransactionClient;
  * for a moderator, and canonical quotes nobody has picked up yet.
  * Verification: canonical quotes from submission until a verifier decides.
  */
-const QUEUES = {
+export const QUEUES = {
 	submissions: [
 		{ type: QuoteType.ORIGINAL, status: S.ORIGINALITY_CHECK },
 		{ type: QuoteType.CANONICAL, status: S.SUBMITTED }

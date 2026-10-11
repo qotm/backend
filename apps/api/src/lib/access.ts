@@ -23,6 +23,8 @@ import { createAccessControl } from 'better-auth/plugins/access';
  * | taxonomy: manage                    |        |          |           |   ✓   |     ✓     |
  * | release: preview, publish           |        |          |           |   ✓   |     ✓     |
  * | audit: read                         |        |          |           |   ✓   |     ✓     |
+ * | dashboard: counts (sidebar)         |        |    ✓     |     ✓     |   ✓   |     ✓     |
+ * | dashboard: read                     |        |          |           |   ✓   |     ✓     |
  * | user: create, list, get, update,    |        |          |           |   ✓   |     ✓     |
  * |   set-password, ban, set-role       |        |          |           |       |           |
  * | user: impersonate, delete           |        |          |           |       |     ✓     |
@@ -54,7 +56,8 @@ const statements = {
 	report: ['moderate'],
 	taxonomy: ['manage'],
 	release: ['preview', 'publish'],
-	audit: ['read']
+	audit: ['read'],
+	dashboard: ['read', 'counts']
 } as const;
 
 export type PermissionResource = keyof typeof statements;
@@ -76,14 +79,16 @@ export const memberAc = ac.newRole({ ...ownSessions });
 // Verifier — the verification queue: verify and correct wording.
 export const verifierAc = ac.newRole({
 	...ownSessions,
-	quote: ['verify', 'correct']
+	quote: ['verify', 'correct'],
+	dashboard: ['counts']
 });
 
 // Moderator — reports, and withdrawing content.
 export const moderatorAc = ac.newRole({
 	...ownSessions,
 	quote: ['withdraw'],
-	report: ['moderate']
+	report: ['moderate'],
+	dashboard: ['counts']
 });
 
 // Admin — everything a verifier and a moderator can do, plus curation,
@@ -96,7 +101,8 @@ export const adminAc = ac.newRole({
 	report: ['moderate'],
 	taxonomy: ['manage'],
 	release: ['preview', 'publish'],
-	audit: ['read']
+	audit: ['read'],
+	dashboard: ['read', 'counts']
 });
 
 // Superuser — everything in `statements`.
