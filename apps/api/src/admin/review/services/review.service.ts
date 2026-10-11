@@ -7,6 +7,8 @@ import { Prisma } from '@qotm/db/client';
 import {
 	QuoteStatus as S,
 	QuoteType,
+	ReleaseState,
+	ReportStatus,
 	ReviewKind,
 	ReviewOutcome
 } from '@qotm/db/enums';
@@ -16,15 +18,24 @@ import { CARD, toCard } from 'quotes/cards';
 import { PUBLIC_ID_PATTERN } from 'quotes/public-id';
 import { QuotesService } from 'quotes/services';
 import { moveQuote } from 'quotes/transition';
-import { CURATION_CHECKLIST, type ChecklistItem } from 'review';
+import {
+	CURATION_CHECKLIST,
+	reportRef,
+	parseReportRef,
+	type ChecklistItem
+} from 'review';
 import type {
 	CorrectQuote,
 	CurationDecision,
+	ReportDecision,
+	ReportQueueQuery,
 	ModerationDecision,
 	QueueQuery,
 	VerificationDecision
 } from '../dto';
 import type {
+	AdminReportEntity,
+	AdminReportPageEntity,
 	QueueItemEntity,
 	QueuePageEntity,
 	SubmissionMatchesEntity
@@ -337,6 +348,184 @@ export class ReviewService {
 			});
 		}, ISOLATION);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
+	}
+
+	/** Reports for the moderators: open ones oldest first, or resolved ones newest first. */
+	async reports(query: ReportQueueQuery): Promise<AdminReportPageEntity> {
+		const open = query.status === 'open';
+		const where: Prisma.ReportWhereInput = open
+			? { status: { not: ReportStatus.RESOLVED } }
+			: { status: ReportStatus.RESOLVED };
+		const [rows, total] = await Promise.all([
+			this.db.report.findMany({
+				where,
+				orderBy: open ? { createdAt: 'asc' } : { resolvedAt: 'desc' },
+				skip: (query.page - 1) * query.limit,
+				take: query.limit,
+				include: {
+					reporter: { select: { handle: true } },
+					quote: {
+						include: {
+							...CARD,
+							releases: {
+								where: { release: { state: ReleaseState.PUBLISHED } },
+								select: {
+									release: { select: { version: true, publishedAt: true } }
+								}
+							}
+						}
+					}
+				}
+			}),
+			this.db.report.count({ where })
+		]);
+		const list = rows.map((r): AdminReportEntity => {
+			const latest = r.quote.releases
+				.map((x) => x.release)
+				.sort((a, b) => +b.publishedAt! - +a.publishedAt!)[0];
+			return {
+				id: reportRef(r.number),
+				reason: r.reason.toLowerCase() as AdminReportEntity['reason'],
+				details: r.details,
+				status: r.status,
+				reporter: r.reporter?.handle ?? null,
+				createdAt: r.createdAt,
+				resolvedAt: r.resolvedAt,
+				quote: toCard(r.quote),
+				inRelease: latest?.version ?? null
+			};
+		});
+		return {
+			list,
+			total,
+			pageSize: list.length,
+			currentPage: query.page,
+			lastPage: Math.ceil(total / query.limit) || 1
+		};
+	}
+
+	/**
+	 * A moderator's decision on a report.
+	 * - dismiss: the report is resolved and the quote stays up; a quote this
+	 *   report had put in dispute returns to where it was, unless another
+	 *   report still holds it there.
+	 * - mark_disputed: the quote is disputed (still up) and the report stays
+	 *   open while it is investigated.
+	 * - withdraw: the quote is withdrawn — out of the next release, record and
+	 *   history kept — and every open report on it is resolved.
+	 */
+	async decideReport(actor: Actor, ref: string, input: ReportDecision) {
+		const number = parseReportRef(ref);
+		const result = await this.db.$transaction(async (tx) => {
+			const report = number
+				? await tx.report.findUnique({
+						where: { number },
+						include: { quote: true }
+					})
+				: null;
+			if (!report) throw new NotFoundException('Report not found');
+			if (report.status === ReportStatus.RESOLVED) {
+				throw new ConflictException(`${ref} is already resolved`);
+			}
+			const quote = report.quote;
+			const now = new Date();
+			const record = (outcome: ReviewOutcome) =>
+				tx.reviewDecision.create({
+					data: {
+						kind: ReviewKind.MODERATION,
+						outcome,
+						quoteId: quote.id,
+						reportId: report.id,
+						actorId: actor.id,
+						note: input.note ?? null
+					}
+				});
+			const resolve = (where: Prisma.ReportWhereInput) =>
+				tx.report.updateMany({
+					where: { ...where, status: { not: ReportStatus.RESOLVED } },
+					data: { status: ReportStatus.RESOLVED, resolvedAt: now }
+				});
+
+			if (input.decision === 'withdraw') {
+				if (quote.status !== S.WITHDRAWN) {
+					await moveQuote(tx, quote, S.WITHDRAWN, {
+						actorId: actor.id,
+						note: input.note,
+						beforeDispute: await this.beforeDispute(tx, quote)
+					});
+				}
+				await record(ReviewOutcome.WITHDRAW);
+				await resolve({ quoteId: quote.id });
+				await recordAudit(tx, {
+					actor,
+					action: 'quote.withdrawn',
+					target: { type: 'quote', id: quote.publicId },
+					note: `${ref}: ${input.note}`
+				});
+			} else if (input.decision === 'mark_disputed') {
+				if (quote.status !== S.DISPUTED) {
+					await moveQuote(tx, quote, S.DISPUTED, {
+						actorId: actor.id,
+						note: input.note,
+						beforeDispute: quote.status
+					});
+				}
+				await record(ReviewOutcome.MARK_DISPUTED);
+				await tx.report.update({
+					where: { id: report.id },
+					data: { status: ReportStatus.DISPUTED }
+				});
+				await recordAudit(tx, {
+					actor,
+					action: 'quote.disputed',
+					target: { type: 'quote', id: quote.publicId },
+					note: `${ref}: ${input.note}`
+				});
+			} else {
+				await record(ReviewOutcome.PUBLISH);
+				await resolve({ id: report.id });
+				if (quote.status === S.DISPUTED) {
+					const stillDisputed = await tx.report.count({
+						where: { quoteId: quote.id, status: ReportStatus.DISPUTED }
+					});
+					if (!stillDisputed) {
+						const before = await this.beforeDispute(tx, quote);
+						if (before) {
+							await moveQuote(tx, quote, before, {
+								actorId: actor.id,
+								note: `Dispute cleared (${ref})`,
+								beforeDispute: before
+							});
+							await recordAudit(tx, {
+								actor,
+								action: 'quote.restored',
+								target: { type: 'quote', id: quote.publicId },
+								note: ref
+							});
+						}
+					}
+				}
+				await recordAudit(tx, {
+					actor,
+					action: 'report.resolved',
+					target: { type: 'report', id: ref },
+					note: input.note ?? 'Dismissed'
+				});
+			}
+			return quote.publicId;
+		}, ISOLATION);
+		return this.quotes.findOne(result, actor.id, { staff: true });
+	}
+
+	/** The status a disputed quote held when its dispute began. */
+	private async beforeDispute(tx: Tx, quote: { id: string; status: S }) {
+		if (quote.status !== S.DISPUTED) return undefined;
+		const event = await tx.quoteEvent.findFirst({
+			where: { quoteId: quote.id, toStatus: S.DISPUTED },
+			orderBy: { at: 'desc' },
+			select: { fromStatus: true }
+		});
+		return event?.fromStatus ?? undefined;
 	}
 
 	/**

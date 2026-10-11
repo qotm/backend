@@ -80,3 +80,22 @@ export const CurationDecision = z
 	])
 	.meta({ id: 'CurationDecision' });
 export type CurationDecision = z.output<typeof CurationDecision>;
+
+export const ReportQueueQuery = QueueQuery.extend({
+	status: z.enum(['open', 'resolved']).default('open')
+});
+export type ReportQueueQuery = z.output<typeof ReportQueueQuery>;
+
+/**
+ * A moderator's decision on a report. Dismiss (the design's "Publish") keeps
+ * the quote up; mark disputed keeps it up while it is investigated; withdraw
+ * takes it down for good, keeping its record and history.
+ */
+export const ReportDecision = z
+	.discriminatedUnion('decision', [
+		z.object({ decision: z.literal('dismiss'), note: note.optional() }),
+		z.object({ decision: z.literal('mark_disputed'), note }),
+		z.object({ decision: z.literal('withdraw'), note })
+	])
+	.meta({ id: 'ReportDecision' });
+export type ReportDecision = z.output<typeof ReportDecision>;

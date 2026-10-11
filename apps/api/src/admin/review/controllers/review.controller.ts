@@ -20,11 +20,17 @@ import { QuotePermissions, ReportPermissions } from '../decorators';
 import {
 	CorrectQuote,
 	CurationDecision,
+	ReportDecision,
+	ReportQueueQuery,
 	ModerationDecision,
 	QueueQuery,
 	VerificationDecision
 } from '../dto';
-import { QueuePageEntity, SubmissionMatchesEntity } from '../entity';
+import {
+	AdminReportPageEntity,
+	QueuePageEntity,
+	SubmissionMatchesEntity
+} from '../entity';
 import { ReviewService } from '../services';
 
 /** The acting reviewer, as the audit log records them. */
@@ -183,5 +189,45 @@ export class AdminCurationController {
 		@Session() session: UserSession
 	) {
 		return this.service.curate(actorOf(session), id, body);
+	}
+}
+
+@ApiTags('Admin · Reports')
+@Controller({ path: 'admin/reports', version: '1' })
+export class AdminReportsController {
+	constructor(private service: ReviewService) {}
+
+	@Get()
+	@Op(
+		'admin/reports',
+		'/v1/admin/reports',
+		'Reports: open ones oldest first, or resolved ones'
+	)
+	@Returns(AdminReportPageEntity)
+	@ReportPermissions('moderate')
+	reports(@Query({ schema: ReportQueueQuery }) query: ReportQueueQuery) {
+		return this.service.reports(query);
+	}
+
+	@Post(':id/decision')
+	@HttpCode(200)
+	@Op(
+		'admin/reports/:id/decision',
+		'/v1/admin/reports/:id/decision',
+		'Dismiss a report, mark the quote disputed, or withdraw the quote (out of the next release; record and history kept)'
+	)
+	@IdParam()
+	@Returns(QuoteEntity)
+	@ApiNotFoundResponse({ description: 'No such report' })
+	@ApiConflictResponse({
+		description: 'Already resolved, or decided meanwhile'
+	})
+	@ReportPermissions('moderate')
+	decide(
+		@Param('id') id: string,
+		@Body({ schema: ReportDecision }) body: ReportDecision,
+		@Session() session: UserSession
+	) {
+		return this.service.decideReport(actorOf(session), id, body);
 	}
 }

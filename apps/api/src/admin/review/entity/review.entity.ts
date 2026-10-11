@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ReportStatus } from '@qotm/db/enums';
 import { dateTime } from 'common/schemas';
 import { paginated } from 'common/entity';
 import { QuoteCardEntity } from 'quotes/entity';
@@ -30,3 +31,32 @@ export const SubmissionMatchesEntity = z
 	})
 	.meta({ id: 'SubmissionMatchesEntity' });
 export type SubmissionMatchesEntity = z.input<typeof SubmissionMatchesEntity>;
+
+/** A report in the moderators' queue, with the quote it is about. */
+export const AdminReportEntity = z
+	.object({
+		id: z.string().meta({ example: 'r_0412' }),
+		reason: z.enum([
+			'attribution',
+			'content',
+			'originality',
+			'duplicate',
+			'other'
+		]),
+		details: z.string().nullable(),
+		status: z.enum(ReportStatus),
+		reporter: z.string().nullable().meta({ example: 'lena' }),
+		createdAt: dateTime(),
+		resolvedAt: dateTime().nullable(),
+		quote: QuoteCardEntity,
+		/** The latest published release the quote is in: withdrawing it drops it from the next. */
+		inRelease: z.string().nullable().meta({ example: 'v2026.08.3' })
+	})
+	.meta({ id: 'AdminReportEntity' });
+export type AdminReportEntity = z.input<typeof AdminReportEntity>;
+
+export const AdminReportPageEntity = paginated(
+	AdminReportEntity,
+	'AdminReportPageEntity'
+);
+export type AdminReportPageEntity = z.input<typeof AdminReportPageEntity>;
