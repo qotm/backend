@@ -108,9 +108,11 @@ describe('quote lifecycle', () => {
 	describe('original track', () => {
 		const t = T.ORIGINAL;
 
-		it('publishes or rejects after the originality check', () => {
+		it('publishes, disputes or withdraws after the originality check, never rejects', () => {
 			expect(canTransition(t, S.ORIGINALITY_CHECK, S.PUBLISHED)).toBe(true);
-			expect(canTransition(t, S.ORIGINALITY_CHECK, S.REJECTED)).toBe(true);
+			expect(canTransition(t, S.ORIGINALITY_CHECK, S.DISPUTED)).toBe(true);
+			expect(canTransition(t, S.ORIGINALITY_CHECK, S.WITHDRAWN)).toBe(true);
+			expect(canTransition(t, S.ORIGINALITY_CHECK, S.REJECTED)).toBe(false);
 		});
 
 		it('returns a declined candidate to the community', () => {

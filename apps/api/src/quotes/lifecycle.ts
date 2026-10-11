@@ -56,8 +56,10 @@ const MOVES: Record<Track, Partial<Record<S, readonly S[]>>> = {
 	ORIGINAL: {
 		[S.PRIVATE]: [S.SUBMITTED],
 		[S.SUBMITTED]: [S.ORIGINALITY_CHECK],
-		// A match found by the check waits here for a moderator (QOT-13).
-		[S.ORIGINALITY_CHECK]: [S.PUBLISHED, S.REJECTED],
+		// QOT-13: a clean check publishes automatically; a possible match waits
+		// here for a moderator, who publishes, marks it disputed or withdraws it
+		// (the shared outcomes below). Originals are never REJECTED.
+		[S.ORIGINALITY_CHECK]: [S.PUBLISHED],
 		[S.PUBLISHED]: [S.COMMUNITY_DISCOVERY],
 		[S.COMMUNITY_DISCOVERY]: [S.CURATION_CANDIDATE],
 		[S.CURATION_CANDIDATE]: [S.CURATION_REVIEW],
