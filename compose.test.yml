@@ -20,7 +20,7 @@ services:
       - 5499:5432
     environment:
       POSTGRES_USER: root
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: Secrett01
       POSTGRES_DB: main
   redis:
     container_name: qotm-test-redis

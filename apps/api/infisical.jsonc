@@ -6,7 +6,7 @@
 
   // Required. Infisical project id: Project Settings in Infisical, or the
   // "workspaceId" in .infisical.json after running `infisical init`.
-  "projectId": "",
+  "projectId": "041d54e2-98c1-432b-8090-d0e9b9f104a3",
 
   // Infisical folder to export from, e.g. "/backend". "/" is the project root.
   // Override per run with `secrets -p /other`.
@@ -27,7 +27,6 @@
   "environments": {
     "dev":     { "aliases": ["development"], "file": ".env" },
     "test":    { "aliases": ["testing"], "file": ".env.test" },
-    "staging": { "aliases": [], "file": ".env.staging" },
     "prod":    { "aliases": ["production"], "file": ".env.production" }
   }
 }
