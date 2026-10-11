@@ -65,8 +65,18 @@ export class QuotesService {
 		};
 	}
 
-	async findOne(publicId: string, viewerId?: string): Promise<QuoteEntity> {
-		const row = await this.findVisible(publicId, viewerId, DETAIL);
+	/**
+	 * A quote page. `staff` (the admin queues) skips the visibility rules: a
+	 * reviewer opens quotes that are not public yet, withdrawn ones included.
+	 */
+	async findOne(
+		publicId: string,
+		viewerId?: string,
+		options: { staff?: boolean } = {}
+	): Promise<QuoteEntity> {
+		const row = options.staff
+			? await this.findAny(publicId, DETAIL)
+			: await this.findVisible(publicId, viewerId, DETAIL);
 		const [card] = await this.withViewer([toCard(row)], [row], viewerId);
 		return {
 			...card,
@@ -149,6 +159,17 @@ export class QuotesService {
 		if (!row || !canView(row, viewerId)) {
 			throw new NotFoundException('Quote not found');
 		}
+		return row as Prisma.QuoteGetPayload<{ include: I }>;
+	}
+
+	private async findAny<I extends Prisma.QuoteInclude>(
+		publicId: string,
+		include: I
+	) {
+		const row = PUBLIC_ID_PATTERN.test(publicId)
+			? await this.db.quote.findUnique({ where: { publicId }, include })
+			: null;
+		if (!row) throw new NotFoundException('Quote not found');
 		return row as Prisma.QuoteGetPayload<{ include: I }>;
 	}
 

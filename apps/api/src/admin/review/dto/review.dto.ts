@@ -1,0 +1,54 @@
+import { z } from 'zod';
+import { quoteText } from 'submissions/dto';
+
+export const QueueQuery = z.object({
+	page: z.coerce.number().int().min(1).default(1),
+	limit: z.coerce.number().int().min(1).max(50).default(20)
+});
+export type QueueQuery = z.output<typeof QueueQuery>;
+
+const note = z.string().trim().min(3).max(1000);
+
+/** A verifier's decision. Needs evidence and reject say why: the submitter sees it. */
+export const VerificationDecision = z
+	.discriminatedUnion('decision', [
+		z.object({ decision: z.literal('verify'), note: note.optional() }),
+		z.object({ decision: z.literal('needs_evidence'), note }),
+		z.object({ decision: z.literal('reject'), note })
+	])
+	.meta({ id: 'VerificationDecision' });
+export type VerificationDecision = z.output<typeof VerificationDecision>;
+
+/** A moderator's decision on an original the originality check held. */
+export const ModerationDecision = z
+	.discriminatedUnion('decision', [
+		z.object({ decision: z.literal('publish'), note: note.optional() }),
+		z.object({ decision: z.literal('mark_disputed'), note }),
+		z.object({ decision: z.literal('withdraw'), note })
+	])
+	.meta({ id: 'ModerationDecision' });
+export type ModerationDecision = z.output<typeof ModerationDecision>;
+
+/**
+ * A verifier's correction: new wording (kept as a Correction) and the author
+ * and source the quote links to.
+ */
+export const CorrectQuote = z
+	.object({
+		text: quoteText().optional(),
+		/** An Author's slug; null unlinks. */
+		author: z.string().max(80).nullable().optional(),
+		/** A Source's id; null unlinks. */
+		sourceId: z.string().max(40).nullable().optional(),
+		year: z.number().int().min(-3000).max(2100).nullable().optional(),
+		sourceUrl: z
+			.url({ protocol: /^https?$/ })
+			.max(2048)
+			.nullable()
+			.optional(),
+		context: z.string().trim().max(1000).nullable().optional(),
+		/** Why: goes to the Correction and the audit log. */
+		note: note
+	})
+	.meta({ id: 'CorrectQuote' });
+export type CorrectQuote = z.output<typeof CorrectQuote>;
