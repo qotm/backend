@@ -15,6 +15,7 @@ model Author {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   sources Source[]
+  quotes  Quote[]
 
   @@unique([slug], map: "authors_slug_idx")
   @@index([name], map: "authors_name_idx")
@@ -34,6 +35,7 @@ model Source {
 
   // Restrict: removing an author must not silently orphan its sources.
   author Author? @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "sources_author_fk")
+  quotes Quote[]
 
   @@index([authorId], map: "sources_author_id_idx")
   @@index([title], map: "sources_title_idx")
@@ -51,6 +53,8 @@ model Topic {
   description String?  @db.VarChar(200)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
+
+  quotes QuoteTopic[]
 
   @@unique([name], map: "topics_name_idx")
   @@unique([slug], map: "topics_slug_idx")

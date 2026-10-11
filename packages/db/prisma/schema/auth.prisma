@@ -28,6 +28,10 @@ model User {
   accounts      Account[]
   handleHistory HandleHistory[]
   devices       Device[]
+  contributions Quote[]         @relation("QuoteContributor")
+  verifications Quote[]         @relation("QuoteVerifier")
+  quoteEvents   QuoteEvent[]    @relation("QuoteEventActor")
+  corrections   Correction[]    @relation("CorrectionActor")
 
   @@unique([email], map: "user_email_idx")
   @@unique([handle], map: "user_handle_idx")

@@ -1,0 +1,95 @@
+model Quote {
+  id             String      @id(map: "quotes_pk") @default(cuid())
+  /// Permanent and independent of the text: `q_8f2k1c`. URLs are `/q/:publicId`.
+  publicId       String      @map("public_id") @db.VarChar(8)
+  text           String      @db.VarChar(280)
+  type           QuoteType
+  status         QuoteStatus
+  // Provenance. An author only on canonical quotes.
+  authorId       String?     @map("author_id")
+  sourceId       String?     @map("source_id")
+  /// The work as cited when there is no Source record: "EWD 498".
+  work           String?     @db.VarChar(300)
+  year           Int?        @db.SmallInt
+  sourceUrl      String?     @map("source_url") @db.VarChar(2048)
+  context        String?     @db.VarChar(1000)
+  // Credit. Null contributor = "a former member" (their account was deleted).
+  contributorId  String?     @map("contributor_id")
+  verifierId     String?     @map("verifier_id")
+  verifiedAt     DateTime?   @map("verified_at")
+  /// When the quote first became public; the latest feed sorts by it.
+  publishedAt    DateTime?   @map("published_at")
+  // Denormalised counts, kept by the like/favorite/recommend writes.
+  likeCount      Int         @default(0) @map("like_count")
+  favoriteCount  Int         @default(0) @map("favorite_count")
+  recommendCount Int         @default(0) @map("recommend_count")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  author      Author?      @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "quotes_author_fk")
+  source      Source?      @relation(fields: [sourceId], references: [id], onDelete: Restrict, map: "quotes_source_fk")
+  contributor User?        @relation("QuoteContributor", fields: [contributorId], references: [id], onDelete: SetNull, map: "quotes_contributor_fk")
+  verifier    User?        @relation("QuoteVerifier", fields: [verifierId], references: [id], onDelete: SetNull, map: "quotes_verifier_fk")
+  topics      QuoteTopic[]
+  events      QuoteEvent[]
+  corrections Correction[]
+
+  @@unique([publicId], map: "quotes_public_id_idx")
+  @@index([status, publishedAt], map: "quotes_status_published_at_idx")
+  @@index([type, status], map: "quotes_type_status_idx")
+  @@index([authorId], map: "quotes_author_id_idx")
+  @@index([sourceId], map: "quotes_source_id_idx")
+  @@index([contributorId, createdAt], map: "quotes_contributor_id_created_at_idx")
+  @@index([verifierId], map: "quotes_verifier_id_idx")
+  @@map("quotes")
+}
+
+model QuoteTopic {
+  quoteId String @map("quote_id")
+  topicId String @map("topic_id")
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "quote_topics_quote_fk")
+  topic Topic @relation(fields: [topicId], references: [id], onDelete: Restrict, map: "quote_topics_topic_fk")
+
+  @@id([quoteId, topicId], map: "quote_topics_pk")
+  @@index([topicId], map: "quote_topics_topic_id_idx")
+  @@map("quote_topics")
+}
+
+/// One status change. Drives the dated LifecycleSteps.
+model QuoteEvent {
+  id         String       @id(map: "quote_events_pk") @default(cuid())
+  quoteId    String       @map("quote_id")
+  /// Null on the event that created the quote.
+  fromStatus QuoteStatus? @map("from_status")
+  toStatus   QuoteStatus  @map("to_status")
+  /// Null when the system moved it (the originality check job).
+  actorId    String?      @map("actor_id")
+  note       String?      @db.VarChar(1000)
+  at         DateTime     @default(now())
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "quote_events_quote_fk")
+  actor User? @relation("QuoteEventActor", fields: [actorId], references: [id], onDelete: SetNull, map: "quote_events_actor_fk")
+
+  @@index([quoteId, at], map: "quote_events_quote_id_at_idx")
+  @@index([actorId], map: "quote_events_actor_id_idx")
+  @@map("quote_events")
+}
+
+/// A change to a quote's wording, kept so its history stays visible.
+model Correction {
+  id        String   @id(map: "corrections_pk") @default(cuid())
+  quoteId   String   @map("quote_id")
+  oldText   String   @map("old_text") @db.VarChar(280)
+  newText   String   @map("new_text") @db.VarChar(280)
+  actorId   String?  @map("actor_id")
+  note      String?  @db.VarChar(1000)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "corrections_quote_fk")
+  actor User? @relation("CorrectionActor", fields: [actorId], references: [id], onDelete: SetNull, map: "corrections_actor_fk")
+
+  @@index([quoteId, createdAt], map: "corrections_quote_id_created_at_idx")
+  @@index([actorId], map: "corrections_actor_id_idx")
+  @@map("corrections")
+}

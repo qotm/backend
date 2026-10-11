@@ -12,3 +12,37 @@ enum SourceKind {
   TALK
   POST
 }
+
+/// Canonical: by a known external author, needs a source and verification.
+/// Original: declared by a member as their own. Private: the owner's only,
+/// never public, never in the dataset.
+enum QuoteType {
+  CANONICAL
+  ORIGINAL
+  PRIVATE
+}
+
+/// One status per quote, covering both lifecycle tracks, their outcomes and
+/// private quotes. The allowed moves live in apps/api/src/quotes/lifecycle.ts.
+enum QuoteStatus {
+  // a private quote
+  PRIVATE
+  // both tracks
+  SUBMITTED
+  CURATION_REVIEW
+  CURATED
+  DATASET_RELEASE
+  // canonical track
+  UNDER_REVIEW
+  VERIFIED
+  // original track
+  ORIGINALITY_CHECK
+  PUBLISHED
+  COMMUNITY_DISCOVERY
+  CURATION_CANDIDATE
+  // outcomes
+  NEEDS_EVIDENCE
+  DISPUTED
+  REJECTED
+  WITHDRAWN
+}
