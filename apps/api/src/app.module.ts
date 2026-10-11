@@ -24,6 +24,7 @@ import { CommonModule } from 'common/common.module';
 import { UsersModule } from 'users/users.module';
 import { MediaModule } from 'media/media.module';
 import { QuotesModule } from 'quotes/quotes.module';
+import { SubmissionsModule } from 'submissions/submissions.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -223,7 +224,8 @@ import { OriginBuilder } from 'common/misc';
 		ScheduleModule.forRoot(),
 		UsersModule,
 		MediaModule,
-		QuotesModule
+		QuotesModule,
+		SubmissionsModule
 	],
 	controllers: [AppController],
 	providers: [

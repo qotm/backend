@@ -6,6 +6,9 @@ model Quote {
   type           QuoteType
   status         QuoteStatus
   // Provenance. An author only on canonical quotes.
+  /// The author as the contributor typed it ("Donald E. Knuth"), kept until
+  /// a verifier links `author`. Canonical quotes only.
+  attribution    String?     @db.VarChar(160)
   authorId       String?     @map("author_id")
   sourceId       String?     @map("source_id")
   /// The work as cited when there is no Source record: "EWD 498".
@@ -43,6 +46,8 @@ model Quote {
   releases        ReleaseQuote[]
 
   @@unique([publicId], map: "quotes_public_id_idx")
+  /// Trigram index for word_similarity: the live match and the originality check.
+  @@index([text(ops: raw("gin_trgm_ops"))], type: Gin, map: "quotes_text_trgm_idx")
   @@index([status, publishedAt], map: "quotes_status_published_at_idx")
   @@index([type, status], map: "quotes_type_status_idx")
   @@index([authorId], map: "quotes_author_id_idx")

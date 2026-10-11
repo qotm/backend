@@ -5,6 +5,7 @@ import { CacheService, PrismaService } from 'common/services';
 import { PUBLIC_ID_PATTERN } from '../public-id';
 import { IN_FEEDS, NOT_PUBLIC, canView } from '../visibility';
 import type { QuoteFeedQuery } from '../dto';
+import { CARD, toCard, type CardRow } from '../cards';
 import type {
 	QuoteCardEntity,
 	QuoteEntity,
@@ -16,16 +17,6 @@ import type {
 /** How long a feed page's ordering is cached. Rows and counts are always fresh. */
 const FEED_TTL_SECONDS = 60;
 const RELATED_LIMIT = 4;
-
-const CARD = {
-	author: { select: { slug: true, name: true } },
-	contributor: { select: { handle: true } },
-	topics: {
-		select: { topicId: true, topic: { select: { slug: true, name: true } } }
-	}
-} satisfies Prisma.QuoteInclude;
-
-type CardRow = Prisma.QuoteGetPayload<{ include: typeof CARD }>;
 
 const DETAIL = {
 	...CARD,
@@ -228,7 +219,7 @@ export class QuotesService {
 	}
 
 	/** Adds the viewer's own like/favorite/recommend state, when signed in. */
-	private async withViewer(
+	async withViewer(
 		cards: QuoteCardEntity[],
 		rows: { id: string }[],
 		viewerId?: string
@@ -270,24 +261,4 @@ function filtersOf(query: QuoteFeedQuery): Prisma.QuoteWhereInput {
 /** Discover's daily seed (UTC); other feeds do not depend on the day. */
 function feedSeed(feed: QuoteFeedQuery['feed']) {
 	return feed === 'discover' ? new Date().toISOString().slice(0, 10) : 'static';
-}
-
-function toCard(row: CardRow): QuoteCardEntity {
-	return {
-		id: row.publicId,
-		text: row.text,
-		type: row.type.toLowerCase() as QuoteCardEntity['type'],
-		status: row.status,
-		author: row.author,
-		work: row.work,
-		year: row.year,
-		contributor: row.contributor,
-		topics: row.topics.map((t) => t.topic),
-		counts: {
-			likes: row.likeCount,
-			favorites: row.favoriteCount,
-			recommends: row.recommendCount
-		},
-		publishedAt: row.publishedAt
-	};
 }

@@ -30,6 +30,8 @@ export const QuoteCardEntity = z
 		type: z.enum(['canonical', 'original', 'private']),
 		status: z.enum(QuoteStatus),
 		author: QuoteAuthorEntity.nullable(),
+		/** The author as the contributor typed it, until a verifier links `author`. */
+		attribution: z.string().nullable().meta({ example: 'Donald E. Knuth' }),
 		work: z.string().nullable().meta({ example: 'EWD 498' }),
 		year: z.number().int().nullable().meta({ example: 1975 }),
 		/** Null once the contributor's account is gone ("a former member"). */

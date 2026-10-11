@@ -5,14 +5,16 @@
 // `import { PrismaClient } from '@qotm/db/client'`.
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  // Trigram similarity for the live match and the originality check (QOT-34).
+  extensions = [pg_trgm]
 }
 
 generator client {
   provider        = "prisma-client"
   output          = "../generated"
   moduleFormat    = "cjs"
-  previewFeatures = ["views", "fullTextSearchPostgres"]
+  previewFeatures = ["views", "fullTextSearchPostgres", "postgresqlExtensions"]
 }
 
 generator dbml {
