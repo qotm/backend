@@ -13,3 +13,10 @@ export const EXAMPLE_QUEUE = 'example';
 export const MATCHING_QUEUE = 'matching';
 export const CHECK_ORIGINALITY = 'check-originality';
 export const RECHECK_ORIGINALS = 'recheck-originals';
+
+/**
+ * Dataset releases. Produced by the API's ReleasesModule
+ * (`apps/api/src/releases/jobs.ts`, RELEASES_QUEUE): one build at a time.
+ */
+export const RELEASES_QUEUE = 'releases';
+export const BUILD_PREVIEW = 'build-preview';

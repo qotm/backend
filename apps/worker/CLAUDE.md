@@ -20,6 +20,11 @@ yarn build          # tsc → dist/
 yarn db:generate    # rebuild the shared @qotm/db client (the API's db:migrate does this too)
 ```
 
+`yarn test:int` runs the integration tests (`src/**/*.int.spec.ts`) against
+the API's test database (port 5461, from `.env.test`) and the real S3 bucket.
+They reset the release tables themselves and delete only the objects they
+wrote (`TrackedStorage`), so never run them alongside the API's e2e suite.
+
 `yarn test` runs the unit tests (Vitest, `src/**/*.spec.ts`). They pass their
 database in as a parameter, so they need no Postgres or Redis: keep job logic
 in a function that takes `db` (see `workers/matching/check.ts`) and the
@@ -38,6 +43,10 @@ backend root, and the image is built from there too
 - `src/db.ts`: `DB.instance`, the Prisma client (`DB.instance.$` adds
   `exists`, `paginate`).
 - `src/utils/browser.ts`: `launchBrowser()` for headless Chromium.
+- `src/lib/storage.ts`: `S3Storage`, the bucket the API's media client uses
+  (jobs take the `Storage` interface, so tests can pass their own).
+- `src/dataset/`: the `qotm.sqlite` schema (v1), writer and loader
+  (BUILD-PLAN §5.6). A schema change is a new `SCHEMA_VERSION`.
 - Imports use the `#app/*`, `#utils/*`, `#lib/*` aliases, with `.js`
   extensions (`#app/logger.js`). Prisma comes from `@qotm/db/client` (no
   extension: it is a package export).

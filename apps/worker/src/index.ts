@@ -9,7 +9,7 @@ logger.info('Worker started');
 
 // Add each new BullMQ worker to this list: it is started here and closed on
 // shutdown (close() stops fetching and waits for the active job).
-const queueWorkers = [Workers.example, Workers.matching];
+const queueWorkers = [Workers.example, Workers.matching, Workers.releases];
 for (const worker of queueWorkers) void worker.run();
 
 let stopping = false;
