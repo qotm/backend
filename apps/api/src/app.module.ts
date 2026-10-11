@@ -37,6 +37,7 @@ import { ReportsModule } from 'reports/reports.module';
 import { DevicesModule } from 'devices/devices.module';
 import { ReactionsModule } from 'reactions/reactions.module';
 import { TaxonomyModule } from 'taxonomy/taxonomy.module';
+import { SearchModule } from 'search/search.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -274,7 +275,8 @@ import { OriginBuilder } from 'common/misc';
 		ReportsModule,
 		DevicesModule,
 		ReactionsModule,
-		TaxonomyModule
+		TaxonomyModule,
+		SearchModule
 	],
 	controllers: [AppController],
 	providers: [

@@ -19,6 +19,8 @@ model Author {
 
   @@unique([slug], map: "authors_slug_idx")
   @@index([name], map: "authors_name_idx")
+  /// Trigram index for search's typo-tolerant author match ("djikstra").
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "authors_name_trgm_idx")
   @@map("authors")
 }
 
@@ -58,5 +60,7 @@ model Topic {
 
   @@unique([name], map: "topics_name_idx")
   @@unique([slug], map: "topics_slug_idx")
+  /// Trigram index for search's topic match.
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "topics_name_trgm_idx")
   @@map("topics")
 }
