@@ -21,6 +21,7 @@
 	"scripts": {
 		"dev": "tsx --conditions=development --import ./src/instrumentation.ts src/index.ts",
 		"dev:watch": "tsx watch --conditions=development --import ./src/instrumentation.ts src/index.ts",
+		"dataset:sample": "tsx --conditions=development src/dataset/sample.ts",
 		"build": "tsc",
 		"start": "node --import ./dist/src/instrumentation.js dist/src/index.js",
 		"secrets": "secrets",
