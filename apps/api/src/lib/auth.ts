@@ -7,6 +7,7 @@ import { PrismaClient } from '@qotm/db/client';
 import { ac, roles } from './access';
 import { AUTH_RATE_LIMIT_RULES } from './rate-limit';
 import { OriginBuilder } from '../common/misc';
+import { handleAuthOptions } from './handle';
 
 const { env } = process;
 
@@ -15,6 +16,7 @@ const db = new PrismaClient({
 		connectionString: env.DATABASE_URL
 	})
 });
+const handle = handleAuthOptions(db);
 
 export const auth = betterAuth({
 	appName: env.APP_NAME,
@@ -28,6 +30,13 @@ export const auth = betterAuth({
 		enabled: true,
 		requireEmailVerification: true
 	},
+	user: {
+		additionalFields: {
+			onboardingCompletedAt: { type: 'date', required: false, input: false },
+			...handle.fields
+		}
+	},
+	databaseHooks: handle.databaseHooks,
 	advanced: {
 		// Must match the runtime instance: the realtime gateway validates socket
 		// sessions through this one, so a different cookie name would reject them.

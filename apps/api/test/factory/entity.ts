@@ -22,6 +22,10 @@ export class Entity {
 			role: 'user',
 			banExpires: null,
 			onboardingCompletedAt: null,
+			handle: F.string.alphanumeric({ length: 10, casing: 'lower' }),
+			bio: null,
+			showFavorites: false,
+			emailOnReview: true,
 			createdAt: new Date(),
 			updatedAt: new Date()
 		}));
@@ -37,6 +41,7 @@ export class Entity {
 			banned: F.datatype.boolean(),
 			banReason: F.lorem.sentence(),
 			role: 'user',
+			handle: F.string.alphanumeric({ length: 10, casing: 'lower' }),
 			banExpires: null,
 			createdAt: new Date(),
 			updatedAt: new Date()

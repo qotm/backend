@@ -1,0 +1,34 @@
+/// A handle a member used before. Old `/@handle` links resolve through it, and
+/// it stays reserved: nobody else can take it.
+model HandleHistory {
+  id        String   @id(map: "handle_history_pk") @default(cuid())
+  userId    String   @map("user_id")
+  oldHandle String   @map("old_handle") @db.VarChar(30)
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "handle_history_user_fk")
+
+  @@unique([oldHandle], map: "handle_history_old_handle_idx")
+  @@index([userId], map: "handle_history_user_id_idx")
+  @@map("handle_history")
+}
+
+/// A terminal signed in with `qotm login`. Revoking keeps the row (and the
+/// terminal's local quotes); it just stops syncing the account.
+model Device {
+  id             String    @id(map: "devices_pk") @default(cuid())
+  userId         String    @map("user_id")
+  /// What the terminal reported: "MacBook · zsh".
+  label          String    @db.VarChar(80)
+  authorizedAt   DateTime  @default(now()) @map("authorized_at")
+  lastSyncAt     DateTime? @map("last_sync_at")
+  /// The dataset release the terminal last synced (`v2026.08.3`).
+  datasetVersion String?   @map("dataset_version") @db.VarChar(20)
+  revokedAt      DateTime? @map("revoked_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "devices_user_fk")
+
+  @@index([userId, revokedAt], map: "devices_user_id_revoked_at_idx")
+  @@map("devices")
+}

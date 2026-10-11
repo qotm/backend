@@ -14,11 +14,23 @@ model User {
   /// additionalField with `input: false`, so it rides on the session but a
   /// client cannot set it for itself.
   onboardingCompletedAt DateTime? @map("onboarding_completed_at")
+  /// Public, unique and changeable: `/@handle`. Stored lowercase. Assigned
+  /// from the email when the account is created (src/lib/handle.ts), since
+  /// the magic-link sign-up never asks for one. A changed handle leaves a
+  /// HandleHistory row so old links keep resolving. The join date is
+  /// `createdAt`.
+  handle                String    @db.VarChar(30)
+  bio                   String?   @db.VarChar(160)
+  showFavorites         Boolean   @default(false) @map("show_favorites")
+  emailOnReview         Boolean   @default(true) @map("email_on_review")
 
   sessions      Session[]
   accounts      Account[]
+  handleHistory HandleHistory[]
+  devices       Device[]
 
   @@unique([email], map: "user_email_idx")
+  @@unique([handle], map: "user_handle_idx")
   @@map("user")
 }
 

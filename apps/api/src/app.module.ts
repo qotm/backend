@@ -26,6 +26,7 @@ import { MediaModule } from 'media/media.module';
 import { AppController } from 'app.controller';
 import { ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
+import { handleAuthOptions } from 'lib/handle';
 import { OriginBuilder } from 'common/misc';
 
 @Module({
@@ -88,9 +89,11 @@ import { OriginBuilder } from 'common/misc';
 								type: 'date',
 								required: false,
 								input: false
-							}
+							},
+							...handleAuthOptions(db).fields
 						}
 					},
+					databaseHooks: handleAuthOptions(db).databaseHooks,
 					socialProviders: {
 						google: {
 							clientId: config.oauth.google.clientId,
