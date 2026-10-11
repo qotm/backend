@@ -32,6 +32,7 @@ model User {
   verifications Quote[]         @relation("QuoteVerifier")
   quoteEvents   QuoteEvent[]    @relation("QuoteEventActor")
   corrections   Correction[]    @relation("CorrectionActor")
+  auditLogs     AuditLog[]      @relation("AuditActor")
 
   @@unique([email], map: "user_email_idx")
   @@unique([handle], map: "user_handle_idx")

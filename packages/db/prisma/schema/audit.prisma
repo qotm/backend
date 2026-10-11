@@ -1,0 +1,26 @@
+/// Who changed what, and why. Append-only: rows are never updated or deleted,
+/// and never exported. Written only through apps/api/src/audit, inside the
+/// transaction of the change it records.
+model AuditLog {
+  id          String   @id(map: "audit_logs_pk") @default(cuid())
+  /// Null once the actor's account is deleted; `actorHandle` still names them.
+  actorId     String?  @map("actor_id")
+  /// The actor's handle when they acted ("mireille"). Null for the system.
+  actorHandle String?  @map("actor_handle") @db.VarChar(30)
+  /// A code from AUDIT_ACTIONS (`quote.withdrawn`).
+  action      String   @db.VarChar(40)
+  /// quote, release, user, report, author, source or topic.
+  targetType  String   @map("target_type") @db.VarChar(20)
+  /// The target's public reference: `q_5d3a8w`, `v2026.09.1`, `kofi`.
+  targetId    String   @map("target_id") @db.VarChar(64)
+  note        String?  @db.VarChar(1000)
+  at          DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull, map: "audit_logs_actor_fk")
+
+  @@index([at], map: "audit_logs_at_idx")
+  @@index([action, at], map: "audit_logs_action_at_idx")
+  @@index([actorId, at], map: "audit_logs_actor_id_at_idx")
+  @@index([targetType, targetId], map: "audit_logs_target_idx")
+  @@map("audit_logs")
+}
