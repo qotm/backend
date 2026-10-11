@@ -26,13 +26,16 @@ model Quote {
   createdAt      DateTime    @default(now()) @map("created_at")
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
-  author      Author?      @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "quotes_author_fk")
-  source      Source?      @relation(fields: [sourceId], references: [id], onDelete: Restrict, map: "quotes_source_fk")
-  contributor User?        @relation("QuoteContributor", fields: [contributorId], references: [id], onDelete: SetNull, map: "quotes_contributor_fk")
-  verifier    User?        @relation("QuoteVerifier", fields: [verifierId], references: [id], onDelete: SetNull, map: "quotes_verifier_fk")
-  topics      QuoteTopic[]
-  events      QuoteEvent[]
-  corrections Correction[]
+  author          Author?          @relation(fields: [authorId], references: [id], onDelete: Restrict, map: "quotes_author_fk")
+  source          Source?          @relation(fields: [sourceId], references: [id], onDelete: Restrict, map: "quotes_source_fk")
+  contributor     User?            @relation("QuoteContributor", fields: [contributorId], references: [id], onDelete: SetNull, map: "quotes_contributor_fk")
+  verifier        User?            @relation("QuoteVerifier", fields: [verifierId], references: [id], onDelete: SetNull, map: "quotes_verifier_fk")
+  topics          QuoteTopic[]
+  events          QuoteEvent[]
+  corrections     Correction[]
+  likes           Like[]
+  favorites       Favorite[]
+  recommendations Recommendation[]
 
   @@unique([publicId], map: "quotes_public_id_idx")
   @@index([status, publishedAt], map: "quotes_status_published_at_idx")

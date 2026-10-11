@@ -1,0 +1,45 @@
+// Likes, favorites and recommendations: one row per member and quote. The
+// matching count on Quote (likeCount, favoriteCount, recommendCount) moves
+// only through apps/api/src/reactions, by the rows each write changed.
+
+model Like {
+  userId    String   @map("user_id")
+  quoteId   String   @map("quote_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, map: "likes_user_fk")
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "likes_quote_fk")
+
+  @@id([userId, quoteId], map: "likes_pk")
+  @@index([quoteId], map: "likes_quote_id_idx")
+  @@map("likes")
+}
+
+model Favorite {
+  userId    String   @map("user_id")
+  quoteId   String   @map("quote_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, map: "favorites_user_fk")
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "favorites_quote_fk")
+
+  @@id([userId, quoteId], map: "favorites_pk")
+  @@index([quoteId], map: "favorites_quote_id_idx")
+  /// /favorites and the CLI's favorites sync, newest first.
+  @@index([userId, createdAt], map: "favorites_user_id_created_at_idx")
+  @@map("favorites")
+}
+
+/// A curation signal, on community originals only.
+model Recommendation {
+  userId    String   @map("user_id")
+  quoteId   String   @map("quote_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade, map: "recommendations_user_fk")
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade, map: "recommendations_quote_fk")
+
+  @@id([userId, quoteId], map: "recommendations_pk")
+  @@index([quoteId], map: "recommendations_quote_id_idx")
+  @@map("recommendations")
+}

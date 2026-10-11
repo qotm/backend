@@ -24,15 +24,18 @@ model User {
   showFavorites         Boolean   @default(false) @map("show_favorites")
   emailOnReview         Boolean   @default(true) @map("email_on_review")
 
-  sessions      Session[]
-  accounts      Account[]
-  handleHistory HandleHistory[]
-  devices       Device[]
-  contributions Quote[]         @relation("QuoteContributor")
-  verifications Quote[]         @relation("QuoteVerifier")
-  quoteEvents   QuoteEvent[]    @relation("QuoteEventActor")
-  corrections   Correction[]    @relation("CorrectionActor")
-  auditLogs     AuditLog[]      @relation("AuditActor")
+  sessions        Session[]
+  accounts        Account[]
+  handleHistory   HandleHistory[]
+  devices         Device[]
+  contributions   Quote[]          @relation("QuoteContributor")
+  verifications   Quote[]          @relation("QuoteVerifier")
+  quoteEvents     QuoteEvent[]     @relation("QuoteEventActor")
+  corrections     Correction[]     @relation("CorrectionActor")
+  auditLogs       AuditLog[]       @relation("AuditActor")
+  likes           Like[]
+  favorites       Favorite[]
+  recommendations Recommendation[]
 
   @@unique([email], map: "user_email_idx")
   @@unique([handle], map: "user_handle_idx")
