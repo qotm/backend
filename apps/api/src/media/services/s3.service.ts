@@ -7,7 +7,8 @@ import {
 	S3Client,
 	PutObjectCommand,
 	DeleteObjectCommand,
-	GetObjectCommand
+	GetObjectCommand,
+	HeadObjectCommand
 } from '@aws-sdk/client-s3';
 import path from 'path';
 import {
@@ -163,6 +164,24 @@ export class S3Service {
 			await this.client.send(command);
 		} catch (error: any) {
 			throw new BadRequestException(error.message);
+		}
+	}
+
+	/** Whether `key` exists; false for a missing key, a storage error throws. */
+	async exists(key: string) {
+		try {
+			await this.client.send(
+				new HeadObjectCommand({ Bucket: this.config.s3.bucket, Key: key })
+			);
+			return true;
+		} catch (error: any) {
+			if (
+				error?.name === 'NotFound' ||
+				error?.$metadata?.httpStatusCode === 404
+			) {
+				return false;
+			}
+			throw this.toException(error, 'read');
 		}
 	}
 }

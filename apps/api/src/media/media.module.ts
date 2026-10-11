@@ -15,6 +15,6 @@ import { MediaProcessor } from './processors';
 	],
 	controllers: [],
 	providers: [S3Service, MediaService, MediaProcessor],
-	exports: [MediaService]
+	exports: [MediaService, S3Service]
 })
 export class MediaModule {}

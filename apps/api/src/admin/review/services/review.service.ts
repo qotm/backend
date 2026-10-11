@@ -24,6 +24,7 @@ import {
 	parseReportRef,
 	type ChecklistItem
 } from 'review';
+import { ShareImagesService } from 'share/services';
 import type {
 	CorrectQuote,
 	CurationDecision,
@@ -126,7 +127,8 @@ const MODERATION: Record<
 export class ReviewService {
 	constructor(
 		private db: PrismaService,
-		private quotes: QuotesService
+		private quotes: QuotesService,
+		private share: ShareImagesService
 	) {}
 
 	/** A queue, longest-waiting first ("waiting" = since the quote's last move). */
@@ -583,6 +585,8 @@ export class ReviewService {
 				note: input.note
 			});
 		}, ISOLATION);
+		// A new wording or credit is a new share-image revision: render it now.
+		await this.share.rerender(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
