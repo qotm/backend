@@ -96,3 +96,10 @@ enum MatchMethod {
   /// Same attributed author and close wording.
   AUTHOR
 }
+
+/// Draft → preview (artifacts built for review) → published (immutable).
+enum ReleaseState {
+  DRAFT
+  PREVIEW
+  PUBLISHED
+}

@@ -1,0 +1,51 @@
+/// A dataset release: qotm.sqlite and manifest.json compiled from curated,
+/// public content. Immutable once published; only apps/api/src/releases
+/// writes it.
+model Release {
+  id             String       @id(map: "releases_pk") @default(cuid())
+  /// `v2026.09.1`. Its scheme is QOT-12's decision.
+  version        String       @db.VarChar(20)
+  state          ReleaseState @default(DRAFT)
+  eligibleCount  Int          @default(0) @map("eligible_count")
+  addedCount     Int          @default(0) @map("added_count")
+  correctedCount Int          @default(0) @map("corrected_count")
+  withdrawnCount Int          @default(0) @map("withdrawn_count")
+  /// The dataset's schema version, for CLI compatibility.
+  schemaVersion  Int          @map("schema_version")
+  /// Size of qotm.sqlite in bytes.
+  sizeBytes      Int?         @map("size_bytes")
+  /// Hex sha256 of qotm.sqlite.
+  sha256         String?      @db.Char(64)
+  /// Storage keys of the built artifacts.
+  artifactKey    String?      @map("artifact_key") @db.VarChar(300)
+  manifestKey    String?      @map("manifest_key") @db.VarChar(300)
+  previewBuiltAt DateTime?    @map("preview_built_at")
+  publishedById  String?      @map("published_by_id")
+  publishedAt    DateTime?    @map("published_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  publishedBy User?          @relation("ReleasePublisher", fields: [publishedById], references: [id], onDelete: SetNull, map: "releases_published_by_fk")
+  quotes      ReleaseQuote[]
+
+  @@unique([version], map: "releases_version_idx")
+  @@index([state, publishedAt], map: "releases_state_published_at_idx")
+  @@index([publishedById], map: "releases_published_by_id_idx")
+  @@map("releases")
+}
+
+/// A quote as a release shipped it: the text at release time, so later
+/// corrections never rewrite what an install received.
+model ReleaseQuote {
+  releaseId     String @map("release_id")
+  quoteId       String @map("quote_id")
+  textAtRelease String @map("text_at_release") @db.VarChar(280)
+
+  release Release @relation(fields: [releaseId], references: [id], onDelete: Cascade, map: "release_quotes_release_fk")
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Restrict, map: "release_quotes_quote_fk")
+
+  @@id([releaseId, quoteId], map: "release_quotes_pk")
+  /// A quote's releases, for its provenance panel.
+  @@index([quoteId], map: "release_quotes_quote_id_idx")
+  @@map("release_quotes")
+}

@@ -40,6 +40,7 @@ model Quote {
   reviews         ReviewDecision[]
   matches         MatchResult[]    @relation("MatchChecked")
   matchedBy       MatchResult[]    @relation("MatchFound")
+  releases        ReleaseQuote[]
 
   @@unique([publicId], map: "quotes_public_id_idx")
   @@index([status, publishedAt], map: "quotes_status_published_at_idx")
