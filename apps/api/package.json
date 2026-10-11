@@ -26,6 +26,7 @@
 		"test:db:generate": "yarn db:generate",
 		"test:db:push": "tsx ./.bin/db.ts -c push -e test",
 		"test:db:seed": "tsx ./.bin/db.ts -c seed -e test",
+		"test:db:seed:e2e": "dotenv -e .env.test -- tsx seeders/e2e.ts",
 		"test": "dotenv -e .env.test -- vitest run --project unit",
 		"test:watch": "dotenv -e .env.test -- vitest --project unit",
 		"test:ui": "dotenv -e .env.test -- vitest --ui --project unit",

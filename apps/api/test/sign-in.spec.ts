@@ -27,16 +27,34 @@ const pathOf = (url: string) => {
 let ip = 0;
 const client = () => `10.35.${Math.floor(++ip / 250)}.${ip % 250}`;
 
+/** OAuth providers this spec needs, whatever keys the local .env.test has. */
+const PROVIDERS = {
+	OAUTH_GITHUB_CLIENT_ID: 'test-github-id',
+	OAUTH_GITHUB_CLIENT_SECRET: 'test-github-secret',
+	OAUTH_GOOGLE_CLIENT_ID: 'test-google-id',
+	OAUTH_GOOGLE_CLIENT_SECRET: 'test-google-secret'
+};
+
 describe('Sign-in: magic links and OAuth', () => {
 	let app: AppFactory;
+	const previous = Object.fromEntries(
+		Object.keys(PROVIDERS).map((key) => [key, process.env[key]])
+	);
 
 	beforeAll(async () => {
+		for (const [key, value] of Object.entries(PROVIDERS)) {
+			process.env[key] ||= value;
+		}
 		app = await AppFactory.init();
 		await app.refresh();
 	});
 
 	afterAll(async () => {
 		await app.close();
+		for (const [key, value] of Object.entries(previous)) {
+			if (value === undefined) delete process.env[key];
+			else process.env[key] = value;
+		}
 	});
 
 	const requestLink = (email: string) =>
