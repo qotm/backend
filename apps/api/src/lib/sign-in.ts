@@ -47,3 +47,34 @@ export function socialProviders(
 		})
 	};
 }
+
+/** The only client the device flow serves: the qotm CLI (BUILD-PLAN §5). */
+export const CLI_CLIENT_ID = 'qotm-cli';
+
+/** Letters and digits nobody misreads: no I, O, 0 or 1. */
+const USER_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** A code like `QTM-7F3K`, as the sign-in screen shows it. */
+export function generateUserCode(random: (max: number) => number) {
+	let code = '';
+	for (let i = 0; i < 4; i++)
+		code += USER_CODE_ALPHABET[random(USER_CODE_ALPHABET.length)];
+	return `QTM-${code}`;
+}
+
+/**
+ * `qotm login` (RFC 8628, the CLI contract): codes live 15 minutes, the CLI
+ * polls every 5 seconds, and the member approves at `<frontend>/device`.
+ */
+export function deviceAuthorizationOptions(
+	frontendHost: string,
+	random: (max: number) => number
+) {
+	return {
+		expiresIn: '15m' as const,
+		interval: '5s' as const,
+		generateUserCode: () => generateUserCode(random),
+		validateClient: (clientId: string) => clientId === CLI_CLIENT_ID,
+		verificationUri: `${frontendHost.replace(/\/$/, '')}/device`
+	};
+}

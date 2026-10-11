@@ -1,3 +1,4 @@
+import { randomInt } from 'crypto';
 import { Logger, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { HttpModule } from '@nestjs/axios';
@@ -9,7 +10,13 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule, AuthGuard } from '@thallesp/nestjs-better-auth';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { admin, magicLink, openAPI } from 'better-auth/plugins';
+import {
+	admin,
+	bearer,
+	deviceAuthorization,
+	magicLink,
+	openAPI
+} from 'better-auth/plugins';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { ExpressAdapter } from '@bull-board/express';
 import { CustomConfigService, PrismaService } from 'common/services';
@@ -27,6 +34,7 @@ import { QuotesModule } from 'quotes/quotes.module';
 import { SubmissionsModule } from 'submissions/submissions.module';
 import { AdminReviewModule } from 'admin/review/admin-review.module';
 import { ReportsModule } from 'reports/reports.module';
+import { DevicesModule } from 'devices/devices.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -34,6 +42,7 @@ import { handleAuthOptions } from 'lib/handle';
 import {
 	MAGIC_LINK_RATE_LIMIT,
 	MAGIC_LINK_TTL_SECONDS,
+	deviceAuthorizationOptions,
 	socialProviders
 } from 'lib/sign-in';
 import { EMAIL_LIMIT, emailLimitKey, signInGuard } from 'lib/sign-in-guard';
@@ -173,6 +182,11 @@ import { OriginBuilder } from 'common/misc';
 								}
 							}
 						}),
+						// `qotm login`: the device flow, and its session token as a bearer.
+						deviceAuthorization(
+							deviceAuthorizationOptions(config.app.frontendHost, randomInt)
+						),
+						bearer(),
 						openAPI()
 					],
 					trustedOrigins: [
@@ -255,7 +269,8 @@ import { OriginBuilder } from 'common/misc';
 		QuotesModule,
 		SubmissionsModule,
 		AdminReviewModule,
-		ReportsModule
+		ReportsModule,
+		DevicesModule
 	],
 	controllers: [AppController],
 	providers: [

@@ -1,7 +1,14 @@
 import 'dotenv/config';
+import { randomInt } from 'crypto';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { admin, magicLink, openAPI } from 'better-auth/plugins';
+import {
+	admin,
+	bearer,
+	deviceAuthorization,
+	magicLink,
+	openAPI
+} from 'better-auth/plugins';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@qotm/db/client';
 import { DEFAULT_ROLE, ac, roles } from './access';
@@ -11,6 +18,7 @@ import { handleAuthOptions } from './handle';
 import {
 	MAGIC_LINK_RATE_LIMIT,
 	MAGIC_LINK_TTL_SECONDS,
+	deviceAuthorizationOptions,
 	socialProviders
 } from './sign-in';
 import { signInGuard } from './sign-in-guard';
@@ -88,6 +96,11 @@ export const auth = betterAuth({
 				throw new Error('The tooling auth instance does not send magic links');
 			}
 		}),
+		// `qotm login`: the device flow, and its session token as a bearer.
+		deviceAuthorization(
+			deviceAuthorizationOptions(env.FRONTEND_HOST || '', randomInt)
+		),
+		bearer(),
 		openAPI()
 	],
 	trustedOrigins: [

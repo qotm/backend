@@ -26,9 +26,40 @@ model Device {
   datasetVersion String?   @map("dataset_version") @db.VarChar(20)
   revokedAt      DateTime? @map("revoked_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
+  /// The session `qotm login` was issued (its bearer token). Revoking the
+  /// device ends it; null once that session is gone.
+  sessionId      String?   @map("session_id")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "devices_user_fk")
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "devices_user_fk")
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull, map: "devices_session_fk")
 
+  @@unique([sessionId], map: "devices_session_id_idx")
   @@index([userId, revokedAt], map: "devices_user_id_revoked_at_idx")
   @@map("devices")
+}
+
+/// better-auth's device authorization grant (RFC 8628) for `qotm login`: a
+/// code the CLI polls with, and the code the member approves on the web.
+/// Written only by better-auth's deviceAuthorization plugin.
+model DeviceCode {
+  id              String    @id(map: "device_code_pk")
+  deviceCode      String    @map("device_code")
+  /// What the member sees and types: `QTM-7F3K`.
+  userCode        String    @map("user_code")
+  userId          String?   @map("user_id")
+  expiresAt       DateTime  @map("expires_at")
+  /// pending, approved or denied.
+  status          String
+  lastPolledAt    DateTime? @map("last_polled_at")
+  pollingInterval Int?      @map("polling_interval")
+  clientId        String?   @map("client_id")
+  scope           String?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade, map: "device_code_user_fk")
+
+  @@unique([deviceCode], map: "device_code_device_code_idx")
+  @@unique([userCode], map: "device_code_user_code_idx")
+  @@index([userId], map: "device_code_user_id_idx")
+  @@index([expiresAt], map: "device_code_expires_at_idx")
+  @@map("device_code")
 }

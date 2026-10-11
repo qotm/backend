@@ -28,6 +28,7 @@ model User {
   accounts          Account[]
   handleHistory     HandleHistory[]
   devices           Device[]
+  deviceCodes       DeviceCode[]
   contributions     Quote[]          @relation("QuoteContributor")
   verifications     Quote[]          @relation("QuoteVerifier")
   quoteEvents       QuoteEvent[]     @relation("QuoteEventActor")
@@ -56,6 +57,8 @@ model Session {
   userId         String   @map("user_id")
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade, map: "session_user_fk")
   impersonatedBy String?  @map("impersonated_by")
+
+  devices Device[]
 
   @@unique([token], map: "session_token_idx")
   @@index([userId], map: "session_user_id_idx")
