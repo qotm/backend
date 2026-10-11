@@ -68,3 +68,9 @@ export class ReleaseJobs {
 		return job.id === jobId;
 	}
 }
+
+/**
+ * The `qotm.sqlite` schema version the worker builds
+ * (`apps/worker/src/dataset/schema.ts`, SCHEMA_VERSION); keep in step.
+ */
+export const DATASET_SCHEMA_VERSION = 1;

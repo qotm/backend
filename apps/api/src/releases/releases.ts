@@ -153,3 +153,41 @@ export function publishRelease(
 		return release;
 	}, ISOLATION);
 }
+
+/** `v2026.09.1`: year, two-digit month, and N from 1 each month (QOT-12). */
+export const VERSION_PATTERN = /^v(\d{4})\.(\d{2})\.(\d+)$/;
+
+/** The next version for `now`'s month (UTC), given the versions so far. */
+export function nextVersion(existing: string[], now: Date) {
+	const month = `v${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, '0')}.`;
+	const used = existing
+		.filter((v) => v.startsWith(month))
+		.map((v) => Number(VERSION_PATTERN.exec(v)?.[3] ?? 0));
+	return `${month}${Math.max(0, ...used) + 1}`;
+}
+
+/**
+ * The release the next preview builds: the one not yet published (there is
+ * at most one), or a new draft with the next version. Taken under an
+ * advisory lock, so two admins asking at once get the same release.
+ */
+export function openRelease(db: Db, schemaVersion: number, now = new Date()) {
+	return db.$transaction(async (tx) => {
+		await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('qotm:open-release'))`;
+		const open = await tx.release.findFirst({
+			where: { state: UNPUBLISHED },
+			orderBy: { createdAt: 'desc' }
+		});
+		if (open) return open;
+		const versions = await tx.release.findMany({ select: { version: true } });
+		return tx.release.create({
+			data: {
+				version: nextVersion(
+					versions.map((r) => r.version),
+					now
+				),
+				schemaVersion
+			}
+		});
+	}, ISOLATION);
+}

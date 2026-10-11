@@ -41,6 +41,7 @@ import { SearchModule } from 'search/search.module';
 import { AdminTaxonomyModule } from 'admin/taxonomy/admin-taxonomy.module';
 import { AdminAuditModule } from 'admin/audit/admin-audit.module';
 import { ReleasesModule } from 'releases/releases.module';
+import { AdminReleasesModule } from 'admin/releases/admin-releases.module';
 import { AppController } from 'app.controller';
 import { DEFAULT_ROLE, ac, roles } from 'lib/access';
 import { AUTH_RATE_LIMIT_RULES } from 'lib/rate-limit';
@@ -282,7 +283,8 @@ import { OriginBuilder } from 'common/misc';
 		SearchModule,
 		AdminTaxonomyModule,
 		AdminAuditModule,
-		ReleasesModule
+		ReleasesModule,
+		AdminReleasesModule
 	],
 	controllers: [AppController],
 	providers: [
