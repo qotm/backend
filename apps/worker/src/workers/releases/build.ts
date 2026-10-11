@@ -68,7 +68,22 @@ export function diffReleases(
 export const changeNote = (c: Changes) =>
 	`+${c.added} ~${c.corrected} −${c.withdrawn}`;
 
-const READ_COMMITTED = {
+type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
+
+/**
+ * The actor's id for a foreign key, or null if their account has gone since
+ * they asked (the row keeps their handle, as a deleted account's rows do).
+ */
+export async function actorIdOf(tx: Tx, actor: Actor) {
+	if (!actor) return null;
+	const user = await tx.user.findUnique({
+		where: { id: actor.id },
+		select: { id: true }
+	});
+	return user?.id ?? null;
+}
+
+export const READ_COMMITTED = {
 	isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted
 };
 
@@ -171,19 +186,9 @@ export async function buildPreview(
 					previewBuiltAt: now
 				}
 			});
-			// The actor's account may have gone since they asked: keep their
-			// handle, drop the link (as a deleted account's rows do).
-			const actorId = job.actor
-				? ((
-						await tx.user.findUnique({
-							where: { id: job.actor.id },
-							select: { id: true }
-						})
-					)?.id ?? null)
-				: null;
 			await tx.auditLog.create({
 				data: {
-					actorId,
+					actorId: await actorIdOf(tx, job.actor),
 					actorHandle: job.actor?.handle ?? null,
 					action: 'release.preview_built',
 					targetType: 'release',

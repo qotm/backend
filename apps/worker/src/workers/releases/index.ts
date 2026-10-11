@@ -4,8 +4,13 @@ import { DB } from '#app/db.js';
 import logger from '#app/logger.js';
 import { S3Storage } from '#lib/storage.js';
 import { createWorker } from '#utils/worker.js';
-import { BUILD_PREVIEW, RELEASES_QUEUE } from '#app/workers/constants.js';
+import {
+	BUILD_PREVIEW,
+	PUBLISH_RELEASE,
+	RELEASES_QUEUE
+} from '#app/workers/constants.js';
 import { buildPreview, type ReleaseJob } from './build.js';
+import { publishRelease } from './publish.js';
 
 const storage = new S3Storage();
 
@@ -24,6 +29,17 @@ export const releases = createWorker<ReleaseJob>(
 				baseUrl: config.releases.baseUrl
 			});
 			logger.info({ jobId: job.id, ...result }, 'Release preview built');
+			return result;
+		}
+		if (job.name === PUBLISH_RELEASE) {
+			const result = await publishRelease(DB.instance, storage, job.data, {
+				prefix: config.releases.prefix,
+				baseUrl: config.releases.baseUrl
+			});
+			logger.info(
+				{ jobId: job.id, version: result.version, published: result.published },
+				'Release published'
+			);
 			return result;
 		}
 		throw new Error(`Unknown releases job: ${job.name}`);

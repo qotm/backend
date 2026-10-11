@@ -1,7 +1,12 @@
 import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { AppFactory } from '@test/factory/app';
-import { BUILD_PREVIEW, RELEASES_QUEUE, ReleaseJobs } from 'releases';
+import {
+	BUILD_PREVIEW,
+	PUBLISH_RELEASE,
+	RELEASES_QUEUE,
+	ReleaseJobs
+} from 'releases';
 
 /** The `releases` producer, against the test Redis (no worker consumes it). */
 describe('Release jobs', () => {
@@ -53,5 +58,16 @@ describe('Release jobs', () => {
 		await job!.remove();
 		expect(await jobs.building()).toBe(false);
 		expect(await jobs.preview({ releaseId: 'r1', actor })).toBe(true);
+	});
+
+	it('queues a publish with retries, once per release', async () => {
+		expect(await jobs.publish({ releaseId: 'r1', actor })).toBe(true);
+		expect(await jobs.publish({ releaseId: 'r1', actor })).toBe(false);
+		expect(await jobs.publish({ releaseId: 'r2', actor })).toBe(true);
+		const [job] = await queue.getJobs(['waiting']);
+		expect(job).toMatchObject({
+			name: PUBLISH_RELEASE,
+			opts: { attempts: 5, backoff: { type: 'exponential', delay: 10_000 } }
+		});
 	});
 });

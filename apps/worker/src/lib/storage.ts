@@ -1,6 +1,6 @@
 import {
-	CopyObjectCommand,
 	DeleteObjectCommand,
+	GetObjectCommand,
 	PutObjectCommand,
 	S3Client
 } from '@aws-sdk/client-s3';
@@ -18,7 +18,7 @@ export interface Storage {
 		body: Uint8Array | string,
 		options: PutOptions
 	): Promise<void>;
-	copy(from: string, to: string, options: PutOptions): Promise<void>;
+	get(key: string): Promise<Uint8Array>;
 	delete(key: string): Promise<void>;
 }
 
@@ -59,17 +59,11 @@ export class S3Storage implements Storage {
 		);
 	}
 
-	async copy(from: string, to: string, options: PutOptions) {
-		await this.client.send(
-			new CopyObjectCommand({
-				Bucket: this.bucket,
-				Key: to,
-				CopySource: `${this.bucket}/${from}`,
-				MetadataDirective: 'REPLACE',
-				ContentType: options.contentType,
-				...(options.cacheControl ? { CacheControl: options.cacheControl } : {})
-			})
+	async get(key: string) {
+		const res = await this.client.send(
+			new GetObjectCommand({ Bucket: this.bucket, Key: key })
 		);
+		return res.Body!.transformToByteArray();
 	}
 
 	async delete(key: string) {

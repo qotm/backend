@@ -32,16 +32,16 @@ export class TrackedStorage implements Storage {
 		await this.s3.put(key, body, options);
 	}
 
-	async copy(from: string, to: string, options: PutOptions) {
-		this.written.add(to);
-		await this.s3.copy(from, to, options);
-	}
-
 	async delete(key: string) {
 		await this.s3.delete(key);
 	}
 
 	async get(key: string) {
+		return this.s3.get(key);
+	}
+
+	/** The object with the headers it is served with. */
+	async fetch(key: string) {
 		const res = await this.client.send(
 			new GetObjectCommand({ Bucket: config.s3.bucket, Key: key })
 		);

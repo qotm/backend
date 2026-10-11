@@ -113,7 +113,7 @@ describe('buildPreview', () => {
 		expect(row.previewBuiltAt).not.toBeNull();
 
 		// The uploaded file is the one recorded, and it opens with its quotes.
-		const file = await storage.get(row.artifactKey!);
+		const file = await storage.fetch(row.artifactKey!);
 		expect(createHash('sha256').update(file.bytes).digest('hex')).toBe(
 			row.sha256
 		);
@@ -141,7 +141,7 @@ describe('buildPreview', () => {
 		sqlite.close();
 
 		const manifest = JSON.parse(
-			(await storage.get(row.manifestKey!)).bytes.toString()
+			(await storage.fetch(row.manifestKey!)).bytes.toString()
 		) as Manifest;
 		expect(manifest).toEqual({
 			version: 'v2026.10.1',
@@ -255,7 +255,7 @@ describe('buildPreview', () => {
 		const failing = {
 			...storage,
 			put: () => Promise.reject(new Error('storage unavailable')),
-			copy: storage.copy.bind(storage),
+			get: storage.get.bind(storage),
 			delete: storage.delete.bind(storage)
 		};
 		await expect(

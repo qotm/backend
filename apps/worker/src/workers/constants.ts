@@ -20,3 +20,4 @@ export const RECHECK_ORIGINALS = 'recheck-originals';
  */
 export const RELEASES_QUEUE = 'releases';
 export const BUILD_PREVIEW = 'build-preview';
+export const PUBLISH_RELEASE = 'publish-release';
