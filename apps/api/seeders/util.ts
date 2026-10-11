@@ -2,6 +2,7 @@ import 'dotenv/config';
 import { auth } from '../src/lib/auth';
 import { PrismaClient } from '@qotm/db/client';
 import { TOPICS } from './topics';
+import { seedDevelopmentData } from './dev';
 
 interface Admin {
 	email: string;
@@ -29,13 +30,25 @@ class Seeder {
 		return new Seeder(db);
 	}
 
-	async seed(admin: Admin, isTest = false) {
+	/**
+	 * Idempotent: everything is found by a natural key and skipped when it
+	 * exists. `withSamples` adds the design's sample content (development
+	 * only, never test or production).
+	 */
+	async seed(admin: Admin, isTest = false, withSamples = false) {
 		await this.seedTopics();
 		await this.seedSuperuser(admin);
 
 		if (isTest) {
 			await this.seedTestUsers();
 		}
+		if (withSamples) {
+			await seedDevelopmentData(this.db);
+		}
+	}
+
+	private async exists(email: string) {
+		return Boolean(await this.db.user.findUnique({ where: { email } }));
 	}
 
 	/** The fixed taxonomy. Upserted, so a re-run adds missing topics only. */
@@ -50,6 +63,7 @@ class Seeder {
 	}
 
 	private async seedSuperuser(admin: Admin) {
+		if (await this.exists(admin.email)) return;
 		await auth.api.createUser({
 			body: {
 				name: 'Super User',
@@ -81,6 +95,7 @@ class Seeder {
 		];
 
 		for (const user of users) {
+			if (await this.exists(user.email)) continue;
 			await auth.api.createUser({
 				body: {
 					name: user.name,

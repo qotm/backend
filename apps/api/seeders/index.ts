@@ -16,7 +16,11 @@ const prisma = new PrismaClient({
 	if (!email || !password) {
 		throw Error('Missing admin credentials');
 	}
-	await Seeder.setup(prisma).seed({ email, password }, env === 'test');
+	await Seeder.setup(prisma).seed(
+		{ email, password },
+		env === 'test',
+		env === 'development'
+	);
 })()
 	.catch((e) => {
 		console.error(e);
