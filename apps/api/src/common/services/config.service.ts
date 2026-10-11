@@ -92,6 +92,11 @@ namespace Config {
 		region: string;
 	}
 
+	export interface Releases {
+		/** Public URL of the bucket's `releases/` prefix (https://releases.qotm.dev). */
+		baseUrl: string;
+	}
+
 	export interface RateLimit {
 		enabled: boolean;
 		ttl: number;
@@ -122,6 +127,7 @@ namespace Config {
 		superuser: Superuser;
 		smtp: SMTP;
 		s3: S3;
+		releases: Releases;
 		rateLimit: RateLimit;
 		oauth: OAuth;
 	}
@@ -180,6 +186,7 @@ namespace Config {
 			S3_BUCKET_NAME: str(),
 			S3_ACCESS_KEY_ID: z.string().optional(),
 			S3_SECRET_ACCESS_KEY: z.string().optional(),
+			RELEASES_BASE_URL: z.url().optional(),
 			RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
 			RATE_LIMIT_TTL: num().default(60_000),
 			RATE_LIMIT_MAX: num().default(120),
@@ -260,6 +267,14 @@ namespace Config {
 			bucket: env.S3_BUCKET_NAME || '',
 			region: env.S3_REGION || 'us-east-1'
 		},
+		releases: {
+			// Defaults to the bucket's own path-style URL (development); the
+			// worker builds artifact URLs the same way.
+			baseUrl: (
+				env.RELEASES_BASE_URL ||
+				`${env.S3_ENDPOINT || ''}/${env.S3_BUCKET_NAME || ''}/releases`
+			).replace(/\/+$/, '')
+		},
 		rateLimit: {
 			enabled: env.RATE_LIMIT_ENABLED !== 'false',
 			ttl: Number(env.RATE_LIMIT_TTL) || 60_000,
@@ -326,6 +341,10 @@ export class CustomConfigService {
 
 	get s3() {
 		return this.config.get('s3', { infer: true });
+	}
+
+	get releases() {
+		return this.config.get('releases', { infer: true });
 	}
 
 	get rateLimit() {
