@@ -19,6 +19,7 @@ import { QuoteEntity } from 'quotes/entity';
 import { QuotePermissions, ReportPermissions } from '../decorators';
 import {
 	CorrectQuote,
+	CurationDecision,
 	ModerationDecision,
 	QueueQuery,
 	VerificationDecision
@@ -141,5 +142,46 @@ export class AdminVerificationController {
 		@Session() session: UserSession
 	) {
 		return this.service.correct(actorOf(session), id, body);
+	}
+}
+
+@ApiTags('Admin · Curation')
+@Controller({ path: 'admin', version: '1' })
+export class AdminCurationController {
+	constructor(private service: ReviewService) {}
+
+	@Get('curation')
+	@Op(
+		'admin/curation',
+		'/v1/admin/curation',
+		'Verified quotes and community candidates waiting for curation, with their likes, favorites and recommends (shown, never decisive)'
+	)
+	@Returns(QueuePageEntity)
+	@QuotePermissions('curate')
+	queue(@Query({ schema: QueueQuery }) query: QueueQuery) {
+		return this.service.queue('curation', query);
+	}
+
+	@Post('quotes/:id/curation')
+	@HttpCode(200)
+	@Op(
+		'admin/quotes/:id/curation',
+		'/v1/admin/quotes/:id/curation',
+		'Curate a quote (every checklist item ticked) or keep it out of the dataset (with a note)'
+	)
+	@IdParam()
+	@Returns(QuoteEntity)
+	@ApiNotFoundResponse()
+	@ApiConflictResponse({
+		description:
+			'Not waiting for curation, checklist incomplete, open reports, or decided meanwhile'
+	})
+	@QuotePermissions('curate')
+	curate(
+		@Param('id') id: string,
+		@Body({ schema: CurationDecision }) body: CurationDecision,
+		@Session() session: UserSession
+	) {
+		return this.service.curate(actorOf(session), id, body);
 	}
 }

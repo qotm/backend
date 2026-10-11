@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { quoteText } from 'submissions/dto';
+import { CURATION_CHECKLIST, type ChecklistItem } from 'review';
 
 export const QueueQuery = z.object({
 	page: z.coerce.number().int().min(1).default(1),
@@ -52,3 +53,30 @@ export const CorrectQuote = z
 	})
 	.meta({ id: 'CorrectQuote' });
 export type CorrectQuote = z.output<typeof CorrectQuote>;
+
+const checklist = z
+	.object(
+		Object.fromEntries(
+			Object.keys(CURATION_CHECKLIST).map((key) => [key, z.boolean()])
+		) as Record<ChecklistItem, z.ZodBoolean>
+	)
+	.strict()
+	.meta({
+		description: 'Every item of the curation checklist, ticked or not.'
+	});
+
+/**
+ * A curator's decision, with the whole checklist. Curating needs every item
+ * ticked; keeping a quote out says why.
+ */
+export const CurationDecision = z
+	.discriminatedUnion('decision', [
+		z.object({
+			decision: z.literal('curate'),
+			checklist,
+			note: note.optional()
+		}),
+		z.object({ decision: z.literal('keep_out'), checklist, note })
+	])
+	.meta({ id: 'CurationDecision' });
+export type CurationDecision = z.output<typeof CurationDecision>;

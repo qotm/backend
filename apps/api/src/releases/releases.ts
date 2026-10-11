@@ -1,6 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@qotm/db/client';
-import { ReleaseState } from '@qotm/db/enums';
+import { QuoteStatus, ReleaseState } from '@qotm/db/enums';
 import { recordAudit, type AuditEntry } from 'audit';
 
 /**
@@ -33,6 +33,15 @@ export interface PreviewArtifacts {
 }
 
 const UNPUBLISHED = { not: ReleaseState.PUBLISHED };
+
+/**
+ * Quotes a release may ship: curated ones, and those already shipped that
+ * nothing has since withdrawn or disputed. The preview build (QOT-46/50)
+ * compiles the dataset from exactly this set.
+ */
+export const RELEASE_ELIGIBLE = {
+	status: { in: [QuoteStatus.CURATED, QuoteStatus.DATASET_RELEASE] }
+} satisfies Prisma.QuoteWhereInput;
 
 // Reads committed data and waits on row locks, rather than aborting
 // concurrent writers as PrismaService's serializable default would.

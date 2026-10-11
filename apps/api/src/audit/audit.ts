@@ -10,6 +10,7 @@ export const AUDIT_ACTIONS = {
 	'quote.rejected': 'Rejected quote',
 	'quote.published': 'Published original',
 	'quote.curated': 'Curated quote',
+	'quote.kept_out': 'Kept out of the dataset',
 	'quote.disputed': 'Disputed quote',
 	'quote.restored': 'Restored quote',
 	'quote.withdrawn': 'Withdrew quote',

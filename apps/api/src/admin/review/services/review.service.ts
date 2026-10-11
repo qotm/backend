@@ -16,8 +16,10 @@ import { CARD, toCard } from 'quotes/cards';
 import { PUBLIC_ID_PATTERN } from 'quotes/public-id';
 import { QuotesService } from 'quotes/services';
 import { moveQuote } from 'quotes/transition';
+import { CURATION_CHECKLIST, type ChecklistItem } from 'review';
 import type {
 	CorrectQuote,
+	CurationDecision,
 	ModerationDecision,
 	QueueQuery,
 	VerificationDecision
@@ -46,6 +48,17 @@ const QUEUES = {
 			type: QuoteType.CANONICAL,
 			status: { in: [S.SUBMITTED, S.UNDER_REVIEW, S.NEEDS_EVIDENCE] }
 		}
+	],
+	// Verified canonical quotes no curator has decided on (one kept out stays
+	// out), community candidates, and anything already in curation review.
+	curation: [
+		{
+			type: QuoteType.CANONICAL,
+			status: S.VERIFIED,
+			reviews: { none: { kind: ReviewKind.CURATION } }
+		},
+		{ type: QuoteType.ORIGINAL, status: S.CURATION_CANDIDATE },
+		{ status: S.CURATION_REVIEW }
 	]
 } satisfies Record<string, Prisma.QuoteWhereInput[]>;
 
@@ -275,6 +288,58 @@ export class ReviewService {
 	}
 
 	/**
+	 * Curate a quote, or keep it out of the dataset. It moves to CURATION_REVIEW
+	 * first if it was not there. Curating needs the whole checklist ticked and
+	 * no open report; likes and recommends are shown in the queue, never
+	 * counted here. Kept out, it returns to VERIFIED or to the community.
+	 */
+	async curate(actor: Actor, publicId: string, input: CurationDecision) {
+		await this.db.$transaction(async (tx) => {
+			let quote = await this.find(publicId, tx);
+			const entry =
+				(quote.type === QuoteType.CANONICAL && quote.status === S.VERIFIED) ||
+				(quote.type === QuoteType.ORIGINAL &&
+					quote.status === S.CURATION_CANDIDATE);
+			if (!entry && quote.status !== S.CURATION_REVIEW) {
+				throw new ConflictException('This quote is not waiting for curation');
+			}
+			if (input.decision === 'curate') {
+				const unticked = (
+					Object.keys(CURATION_CHECKLIST) as ChecklistItem[]
+				).filter((item) => !input.checklist[item]);
+				if (unticked.length) {
+					throw new ConflictException(
+						`Curating needs every checklist item: ${unticked.map((i) => CURATION_CHECKLIST[i]).join('; ')}`
+					);
+				}
+				const open = await tx.report.count({
+					where: { quoteId: quote.id, status: { not: 'RESOLVED' } }
+				});
+				if (open) throw new ConflictException('Resolve the open reports first');
+			}
+			if (quote.status !== S.CURATION_REVIEW) {
+				await moveQuote(tx, quote, S.CURATION_REVIEW, { actorId: actor.id });
+				quote = { ...quote, status: S.CURATION_REVIEW };
+			}
+			const back =
+				quote.type === QuoteType.CANONICAL ? S.VERIFIED : S.COMMUNITY_DISCOVERY;
+			await this.decide(tx, actor, quote, {
+				kind: ReviewKind.CURATION,
+				to: input.decision === 'curate' ? S.CURATED : back,
+				outcome:
+					input.decision === 'curate'
+						? ReviewOutcome.CURATE
+						: ReviewOutcome.KEEP_OUT,
+				action:
+					input.decision === 'curate' ? 'quote.curated' : 'quote.kept_out',
+				note: input.note,
+				checklist: input.checklist
+			});
+		}, ISOLATION);
+		return this.quotes.findOne(publicId, actor.id, { staff: true });
+	}
+
+	/**
 	 * A verifier's correction: new wording is kept as a Correction (releases
 	 * keep the text they shipped), and the author and source are linked.
 	 */
@@ -344,6 +409,7 @@ export class ReviewService {
 			action: AuditAction;
 			note?: string;
 			data?: Prisma.QuoteUncheckedUpdateManyInput;
+			checklist?: Record<string, boolean>;
 		}
 	) {
 		await moveQuote(tx, quote, decision.to, {
@@ -358,7 +424,8 @@ export class ReviewService {
 				outcome: decision.outcome,
 				quoteId: quote.id,
 				actorId: actor.id,
-				note: decision.note ?? null
+				note: decision.note ?? null,
+				checklist: decision.checklist
 			}
 		});
 		await recordAudit(tx, {
