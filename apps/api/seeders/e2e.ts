@@ -2,14 +2,30 @@
  * Resets the test database (and the test Redis) to a known state for the
  * web app's Playwright suite: `yarn test:db:seed:e2e`. Every table is
  * emptied, then the topics, the superuser, the test users (password
- * sign-in is on in the test environment) and the design's sample content
- * are seeded. Refuses anything but the test stack.
+ * sign-in is on in the test environment), a verifier and a moderator for
+ * the console's role gates, and the design's sample content are seeded.
+ * Refuses anything but the test stack.
  */
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@qotm/db/client';
 import Redis from 'ioredis';
+import { auth } from '../src/lib/auth';
 import Seeder from './util';
+
+/** Staff below admin, for the web's console tests (the API's own suite does not seed them). */
+const STAFF = [
+	{
+		name: 'Test Verifier',
+		email: 'test.verifier@example.com',
+		role: 'verifier'
+	},
+	{
+		name: 'Test Moderator',
+		email: 'test.moderator@example.com',
+		role: 'moderator'
+	}
+] as const;
 
 const { DATABASE_URL, APP_ENV, SUPERUSER_EMAIL, SUPERUSER_PASSWORD } =
 	process.env;
@@ -51,6 +67,13 @@ const prisma = new PrismaClient({
 		true,
 		true
 	);
+	for (const user of STAFF) {
+		await auth.api.createUser({ body: { ...user, password: 'secret' } });
+	}
+	await prisma.user.updateMany({
+		where: { email: { in: STAFF.map((u) => u.email) } },
+		data: { emailVerified: true }
+	});
 	console.log('e2e database seeded');
 })()
 	.catch((e) => {
