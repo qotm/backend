@@ -40,6 +40,7 @@ import type {
 	VerificationDecision
 } from '../dto';
 import type {
+	AdminQuoteEntity,
 	AdminReportEntity,
 	AdminReportPageEntity,
 	QueueItemEntity,
@@ -546,6 +547,35 @@ export class ReviewService {
 			select: { fromStatus: true }
 		});
 		return event?.fromStatus ?? undefined;
+	}
+
+	/** A quote in any status, for a reviewer: the quote page and its history with notes. */
+	async quote(actor: Actor, publicId: string): Promise<AdminQuoteEntity> {
+		const quote = await this.find(publicId);
+		if (quote.type === QuoteType.PRIVATE)
+			throw new NotFoundException('Quote not found');
+		const [detail, events] = await Promise.all([
+			this.quotes.findOne(publicId, actor.id, { staff: true }),
+			this.db.quoteEvent.findMany({
+				where: { quoteId: quote.id },
+				orderBy: { at: 'asc' },
+				select: {
+					toStatus: true,
+					at: true,
+					note: true,
+					actor: { select: { handle: true } }
+				}
+			})
+		]);
+		return {
+			...detail,
+			history: events.map((e) => ({
+				status: e.toStatus,
+				at: e.at,
+				note: e.note,
+				by: e.actor?.handle ? { handle: e.actor.handle } : null
+			}))
+		};
 	}
 
 	/**

@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ReportStatus } from '@qotm/db/enums';
+import { QuoteStatus, ReportStatus } from '@qotm/db/enums';
 import { dateTime } from 'common/schemas';
 import { paginated } from 'common/entity';
-import { QuoteCardEntity } from 'quotes/entity';
+import { QuoteCardEntity, QuoteEntity } from 'quotes/entity';
 
 const MatchEntity = z.object({
 	id: z.string().meta({ example: 'q_2x7v3m' }),
@@ -22,6 +22,23 @@ export type QueueItemEntity = z.input<typeof QueueItemEntity>;
 
 export const QueuePageEntity = paginated(QueueItemEntity, 'QueuePageEntity');
 export type QueuePageEntity = z.input<typeof QueuePageEntity>;
+
+/**
+ * A quote as a reviewer sees it, whatever its status: the quote page plus
+ * every move with its note (the submitter's evidence, earlier decisions).
+ */
+export const AdminQuoteEntity = QuoteEntity.extend({
+	history: z.array(
+		z.object({
+			status: z.enum(QuoteStatus),
+			at: dateTime(),
+			note: z.string().nullable(),
+			/** Null: the system (the originality check) or a former member. */
+			by: z.object({ handle: z.string().meta({ example: 'ada' }) }).nullable()
+		})
+	)
+}).meta({ id: 'AdminQuoteEntity' });
+export type AdminQuoteEntity = z.input<typeof AdminQuoteEntity>;
 
 /** MatchCompare: the submission beside every possible match found for it. */
 export const SubmissionMatchesEntity = z

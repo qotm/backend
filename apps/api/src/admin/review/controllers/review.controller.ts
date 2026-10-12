@@ -27,6 +27,7 @@ import {
 	VerificationDecision
 } from '../dto';
 import {
+	AdminQuoteEntity,
 	AdminReportPageEntity,
 	QueuePageEntity,
 	SubmissionMatchesEntity
@@ -130,6 +131,20 @@ export class AdminVerificationController {
 		@Session() session: UserSession
 	) {
 		return this.service.verify(actorOf(session), id, body);
+	}
+
+	@Get('quotes/:id')
+	@Op(
+		'admin/quotes/:id',
+		'/v1/admin/quotes/:id',
+		'A quote in any status, with its history and notes (for review)'
+	)
+	@IdParam()
+	@Returns(AdminQuoteEntity)
+	@ApiNotFoundResponse()
+	@QuotePermissions('correct')
+	quote(@Param('id') id: string, @Session() session: UserSession) {
+		return this.service.quote(actorOf(session), id);
 	}
 
 	@Patch('quotes/:id')

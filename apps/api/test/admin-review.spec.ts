@@ -251,6 +251,56 @@ describe('Admin review queues', () => {
 		});
 	});
 
+	describe('a quote for review', () => {
+		it('shows a quote in any status with its history and notes, to verifiers and admins', async () => {
+			const q = await quote('CANONICAL', 'NEEDS_EVIDENCE');
+			await app.db.quoteEvent.create({
+				data: {
+					quoteId: q.id,
+					fromStatus: 'NEEDS_EVIDENCE',
+					toStatus: 'UNDER_REVIEW',
+					actorId: memberId,
+					note: 'EWD 498, page 2.',
+					at: new Date(Date.UTC(2026, 9, 1))
+				}
+			});
+			for (const role of ['verifier', 'admin'] as const) {
+				const res = await as(role).get(`/v1/admin/quotes/${q.publicId}`);
+				expect(res.status).toBe(200);
+				expect(res.body).toMatchObject({
+					id: q.publicId,
+					status: 'NEEDS_EVIDENCE',
+					attribution: 'Edsger W. Dijkstra',
+					history: [
+						{ status: 'NEEDS_EVIDENCE', note: null, by: null },
+						{
+							status: 'UNDER_REVIEW',
+							note: 'EWD 498, page 2.',
+							by: { handle: expect.any(String) }
+						}
+					]
+				});
+			}
+		});
+
+		it('is staff only, and never shows a private quote', async () => {
+			const q = await quote('CANONICAL', 'SUBMITTED');
+			expect(
+				(await as('member').get(`/v1/admin/quotes/${q.publicId}`)).status
+			).toBe(403);
+			expect(
+				(await as('moderator').get(`/v1/admin/quotes/${q.publicId}`)).status
+			).toBe(403);
+			const p = await quote('PRIVATE', 'PRIVATE');
+			expect(
+				(await as('admin').get(`/v1/admin/quotes/${p.publicId}`)).status
+			).toBe(404);
+			expect((await as('admin').get('/v1/admin/quotes/q_nope00')).status).toBe(
+				404
+			);
+		});
+	});
+
 	describe('corrections', () => {
 		it('keeps the old wording as a Correction and audits it', async () => {
 			const q = await quote('CANONICAL', 'VERIFIED', {
