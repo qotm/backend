@@ -1,7 +1,8 @@
 import * as React from 'react';
 import { Text, Img, Link } from '@react-email/components';
 import { EmailProps, ActivationTwoFaData } from 'common/types';
-import MainLayout, { Salutation, CN } from './main-layout';
+import MainLayout, { Salutation } from './main-layout';
+import { text, color } from './theme';
 
 interface AProps {
 	href: string;
@@ -9,7 +10,12 @@ interface AProps {
 }
 
 const A = ({ href, text }: AProps) => (
-	<Link className={CN.anchor} href={href} target="_blank" rel="noreferrer">
+	<Link
+		style={{ color: color.clay600 }}
+		href={href}
+		target="_blank"
+		rel="noreferrer"
+	>
 		{text}
 	</Link>
 );
@@ -21,7 +27,7 @@ const ActivationTwofa = ({
 	return (
 		<MainLayout {...props}>
 			<Salutation name={firstName} />
-			<Text className={CN.text}>
+			<Text style={text.body}>
 				{
 					'You requested to enable two factor authentication. To configure authentication via TOTP on multiple devices, during setup, scan the QR code using each device at the same time.'
 				}
@@ -33,7 +39,7 @@ const ActivationTwofa = ({
 				width="200px"
 				height="200px"
 			/>
-			<Text className={CN.text}>
+			<Text style={text.body}>
 				A time-based one-time password (TOTP) application automatically
 				generates an authentication code that changes after a certain period of
 				time. We recommend using cloud-based TOTP apps such as:{' '}

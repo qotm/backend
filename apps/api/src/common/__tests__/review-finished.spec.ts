@@ -14,7 +14,9 @@ const data: ReviewFinishedData = {
 	outcome: 'NEEDS_EVIDENCE',
 	quote: {
 		id: 'q_8f2k1c',
-		text: 'Simplicity is prerequisite for reliability.'
+		text: 'Simplicity is prerequisite for reliability.',
+		author: 'Edsger W. Dijkstra',
+		original: false
 	},
 	note: '<script>alert("x")</script> & see EWD 498',
 	url: 'https://qotm.site/q/8f2k1c'
@@ -25,8 +27,9 @@ describe('the review-finished email', () => {
 		const html = await render(
 			ReviewFinished({
 				...data,
-				quote: { id: 'q_8f2k1c', text: '<b>bold</b> claim' },
+				quote: { ...data.quote, text: '<b>bold</b> claim' },
 				host: 'https://qotm.site',
+				site: 'https://qotm.site',
 				appName: 'qotm',
 				footerText: '',
 				subject: REVIEW_COPY.NEEDS_EVIDENCE.subject,
@@ -37,8 +40,42 @@ describe('the review-finished email', () => {
 		expect(html).toContain('&lt;script&gt;');
 		expect(html).toContain('&amp; see EWD 498');
 		expect(html).not.toContain('<b>bold</b>');
-		expect(html).toContain('https://qotm.site/q/8f2k1c');
+		// Evidence is added from the member's quotes in review.
+		expect(html).toContain('https://qotm.site/my-quotes?tab=review');
 		expect(html).toContain(REVIEW_COPY.NEEDS_EVIDENCE.body);
+	});
+
+	const email = (over: Partial<ReviewFinishedData>) =>
+		render(
+			ReviewFinished({
+				...data,
+				note: null,
+				...over,
+				host: '',
+				appName: 'qotm',
+				footerText: '',
+				site: 'https://qotm.site',
+				subject: '',
+				preview: ''
+			})
+		);
+
+	it('links to the quote and credits its author apart from the contributor', async () => {
+		const html = await email({ outcome: 'VERIFY' });
+		expect(html).toContain('href="https://qotm.site/q/8f2k1c"');
+		expect(html).toContain('— Edsger W. Dijkstra');
+		expect(html).toContain('✓ Verified · Review finished');
+		expect(html).toContain('cid:qotm-logo');
+	});
+
+	it('credits an original to its member and shows the sync command when curated', async () => {
+		const html = await email({
+			outcome: 'CURATE',
+			quote: { ...data.quote, author: null, original: true }
+		});
+		expect(html).toContain('Declared original by @ada');
+		expect(html).toContain('qotm sync');
+		expect(html).not.toContain('Edsger');
 	});
 
 	it('has a subject for every outcome, in sentence case without exclamation marks', () => {

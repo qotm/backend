@@ -14,7 +14,11 @@ all of them.
    value (`ReviewFinished = 'review-finished'`) and an interface with `to`
    plus what the template needs (`ReviewFinishedData`).
 2. **The template**, `emails/review-finished.tsx`: a React Email component
-   using `main-layout.tsx`, taking `EmailProps<ReviewFinishedData>`. Preview
+   using `main-layout.tsx`, taking `EmailProps<ReviewFinishedData>`. Build it
+   from the layout's blocks (`Heading`, `Action` + `Button`, `QuoteBlock`,
+   `Note`, `Terminal`, `LinkFallback`, `Fine`) and style anything else with
+   `emails/theme.ts` (qotm_kit's tokens), never literal colours. The designs
+   are the `qotm_mail` Paper file and the qotm canvas's Emails page. Preview
    it with `yarn email:dev`.
 3. **The render step**, in `src/common/processors/mail/process.ts`: a
    `ReviewFinishedProcess extends ProcessAbstract<ReviewFinishedData>` with

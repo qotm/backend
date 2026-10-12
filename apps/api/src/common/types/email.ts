@@ -14,6 +14,8 @@ export interface EmailGlobalProps {
 	host: string;
 	appName: string;
 	footerText: string;
+	/** The web app's origin (FRONTEND_HOST): links and the footer's address. */
+	site: string;
 }
 
 export interface EmailBaseProps extends EmailGlobalProps {
@@ -78,7 +80,14 @@ export interface ReviewFinishedData {
 	to: string;
 	handle: string;
 	outcome: ReviewFinishedOutcome;
-	quote: { id: string; text: string };
+	quote: {
+		id: string;
+		text: string;
+		/** The author's name; null for an original or an unlinked author. */
+		author: string | null;
+		/** A community original: credited "Declared original by @handle". */
+		original: boolean;
+	};
 	/** The reviewer's note, as they wrote it; the template escapes it. */
 	note: string | null;
 	/** The quote's page. */

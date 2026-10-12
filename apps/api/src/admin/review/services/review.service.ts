@@ -656,6 +656,7 @@ export class ReviewService {
 				select: {
 					text: true,
 					type: true,
+					author: { select: { name: true } },
 					contributor: {
 						select: { id: true, email: true, handle: true, emailOnReview: true }
 					}
@@ -675,7 +676,12 @@ export class ReviewService {
 				to: to.email,
 				handle: to.handle,
 				outcome,
-				quote: { id: publicId, text: quote.text },
+				quote: {
+					id: publicId,
+					text: quote.text,
+					author: quote.author?.name ?? null,
+					original: quote.type === QuoteType.ORIGINAL
+				},
 				note: note || null,
 				url: `${this.config.app.frontendHost}/q/${publicId.replace(/^q_/, '')}`
 			});

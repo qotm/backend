@@ -4,6 +4,7 @@ import { Job } from 'bullmq';
 import { MailerService } from '@nestjs-modules/mailer';
 import { CustomConfigService, LoggerService } from 'common/services';
 import { EmailGlobalProps } from 'common/types';
+import { LOGO_CID, LOGO_PNG } from '@emails/logo';
 import { ProcessFactory } from './process';
 
 @Injectable()
@@ -20,7 +21,8 @@ export class MailProcessor extends WorkerHost {
 		this.globals = {
 			host: config.app.host,
 			appName: config.app.name,
-			footerText: `${config.app.name} - ${config.app.host}`
+			footerText: `${config.app.name} - ${config.app.host}`,
+			site: config.app.frontendHost
 		};
 	}
 
@@ -28,7 +30,19 @@ export class MailProcessor extends WorkerHost {
 		const helper = ProcessFactory.init(job, this.globals);
 		if (helper) {
 			const options = helper.process();
-			await this.email.sendMail(options);
+			// The layout shows the logo by content id (clients block SVG and data: URIs).
+			await this.email.sendMail({
+				...options,
+				attachments: [
+					...(options.attachments ?? []),
+					{
+						filename: 'qotm.png',
+						content: LOGO_PNG,
+						cid: LOGO_CID,
+						contentType: 'image/png'
+					}
+				]
+			});
 		}
 	}
 

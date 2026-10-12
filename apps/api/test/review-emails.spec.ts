@@ -77,7 +77,12 @@ describe('Review emails', () => {
 			to: TEST_USER.email,
 			handle: 'test_user',
 			outcome: 'NEEDS_EVIDENCE',
-			quote: { id: q.publicId, text: q.text },
+			quote: {
+				id: q.publicId,
+				text: q.text,
+				author: 'Edsger W. Dijkstra',
+				original: false
+			},
 			note: 'Which edition? <b>Page</b> please.',
 			url: `${app.config.app.frontendHost}/q/${q.publicId.slice(2)}`
 		});
