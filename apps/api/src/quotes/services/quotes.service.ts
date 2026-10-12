@@ -83,7 +83,9 @@ export class QuotesService {
 	): Promise<QuoteEntity> {
 		const row = options.staff
 			? await this.findAny(publicId, DETAIL)
-			: await this.findVisible(publicId, viewerId, DETAIL);
+			: await this.findVisible(publicId, viewerId, DETAIL, {
+					withdrawnRecord: true
+				});
 		const [card] = await this.withViewer([toCard(row)], [row], viewerId);
 		return {
 			...card,
@@ -144,14 +146,18 @@ export class QuotesService {
 	}
 
 	/**
-	 * The quote, if `viewerId` may see it. Anything else is a 404: a withdrawn
-	 * quote says so and keeps its id; an unknown, private or unchecked one is
-	 * simply not found.
+	 * The quote, if `viewerId` may see it. Anything else is a 404: an unknown,
+	 * private or unchecked one is simply not found. A withdrawn quote keeps
+	 * its id: its page (`withdrawnRecord`) still shows the record and history
+	 * if it was ever public (BUILD-PLAN §9: the record is kept), and every
+	 * other use (related, reactions, reports, share images) gets a 404 that
+	 * says it was withdrawn.
 	 */
 	private async findVisible<I extends Prisma.QuoteInclude>(
 		publicId: string,
 		viewerId: string | undefined,
-		include: I
+		include: I,
+		options: { withdrawnRecord?: boolean } = {}
 	) {
 		if (!PUBLIC_ID_PATTERN.test(publicId)) {
 			throw new NotFoundException('Quote not found');
@@ -161,6 +167,9 @@ export class QuotesService {
 			include
 		});
 		if (row?.status === QuoteStatus.WITHDRAWN) {
+			if (options.withdrawnRecord && row.publishedAt) {
+				return row as Prisma.QuoteGetPayload<{ include: I }>;
+			}
 			throw new NotFoundException(`Quote ${publicId} was withdrawn`);
 		}
 		if (!row || !canView(row, viewerId)) {

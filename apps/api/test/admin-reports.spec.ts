@@ -169,9 +169,10 @@ describe('Admin reports', () => {
 		).toBe(1);
 		expect(await app.db.quoteEvent.count({ where: { quoteId: q.id } })).toBe(2);
 
+		// Its page keeps the record, marked withdrawn; it is in no feed.
 		const page = await app.request.get(`/v1/quotes/${q.publicId}`);
-		expect(page.status).toBe(404);
-		expect(page.body.message).toContain(q.publicId);
+		expect(page.status).toBe(200);
+		expect(page.body).toMatchObject({ id: q.publicId, status: 'WITHDRAWN' });
 	});
 
 	it('disputes a quote (it stays up), then a dismissal restores it', async () => {

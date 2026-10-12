@@ -328,13 +328,26 @@ describe('Quotes (public)', () => {
 			).toBe(200);
 		});
 
-		it('404s a withdrawn quote with its id kept, even for its contributor', async () => {
+		it('keeps a withdrawn quote’s record at its id, for anyone, if it was ever public', async () => {
 			for (const cookie of [undefined, userCookie]) {
 				const req = app.request.get('/v1/quotes/q_withdr');
 				const res = cookie ? await req.set('Cookie', cookie) : await req;
-				expect(res.status).toBe(404);
-				expect(res.body.message).toContain('q_withdr');
+				expect(res.status).toBe(200);
+				expect(res.body).toMatchObject({ id: 'q_withdr', status: 'WITHDRAWN' });
 			}
+		});
+
+		it('404s a withdrawn quote that was never public, and says so', async () => {
+			await quote('q_wdnone', 'WITHDRAWN', { type: 'ORIGINAL' });
+			const res = await app.request.get('/v1/quotes/q_wdnone');
+			expect(res.status).toBe(404);
+			expect(res.body.message).toContain('q_wdnone');
+		});
+
+		it('keeps a withdrawn quote out of related, with a 404 that says so', async () => {
+			const res = await app.request.get('/v1/quotes/q_withdr/related');
+			expect(res.status).toBe(404);
+			expect(res.body.message).toContain('withdrawn');
 		});
 
 		it('404s an unknown or malformed id', async () => {
