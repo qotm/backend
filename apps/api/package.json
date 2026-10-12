@@ -47,7 +47,9 @@
 		"test:dc:recreate": "tsx ./.bin/dc.ts -c recreate -e test",
 		"test:dc:reinstall": "yarn test:dc:recreate && yarn test:db:generate && yarn test:db:push && yarn test:db:seed",
 		"down": "yarn dc:down && yarn test:dc:down",
-		"reinstall": "yarn dc:reinstall && yarn test:dc:reinstall"
+		"reinstall": "yarn dc:reinstall && yarn test:dc:reinstall",
+		"db:import": "dotenv -e .env -- tsx seeders/corpus.ts",
+		"test:db:import": "dotenv -e .env.test -- tsx seeders/corpus.ts"
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.1013.0",

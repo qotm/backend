@@ -16,6 +16,7 @@ yarn dc:up && yarn dc:wait   # local Postgres + Redis (backend root compose.yml)
 yarn db:migrate              # create/apply a migration, then rebuild @qotm/db
 yarn db:generate             # rebuild the @qotm/db client without migrating
 yarn db:seed                 # seeders/index.ts
+yarn db:import <file>        # the quote corpus (qotm/corpus out/import.json); test:db:import for the test DB
 yarn dev                     # watch mode; http://localhost:5000/docs
 yarn build && yarn lint && yarn format
 ```
