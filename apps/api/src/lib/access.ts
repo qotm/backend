@@ -20,6 +20,7 @@ import { createAccessControl } from 'better-auth/plugins/access';
  * | quote: withdraw                     |        |          |     ✓     |   ✓   |     ✓     |
  * | report: moderate                    |        |          |     ✓     |   ✓   |     ✓     |
  * | quote: curate                       |        |          |           |   ✓   |     ✓     |
+ * | taxonomy: read (authors, sources)   |        |    ✓     |           |   ✓   |     ✓     |
  * | taxonomy: manage                    |        |          |           |   ✓   |     ✓     |
  * | release: preview, publish           |        |          |           |   ✓   |     ✓     |
  * | audit: read                         |        |          |           |   ✓   |     ✓     |
@@ -30,7 +31,8 @@ import { createAccessControl } from 'better-auth/plugins/access';
  * | user: impersonate, delete           |        |          |           |       |     ✓     |
  * | session: delete (anyone's)          |        |          |           |       |     ✓     |
  *
- * - Verifiers check provenance (the verification queue, wording corrections).
+ * - Verifiers check provenance (the verification queue, wording corrections,
+ *   linking a quote's author and source, which they look up).
  * - Moderators handle reports and the submissions queue's moderation
  *   decisions (publish, mark disputed, withdraw).
  * - Admins curate, manage authors, sources and topics, build and publish
@@ -54,7 +56,7 @@ const statements = {
 	session: ['list', 'revoke', 'delete'],
 	quote: ['verify', 'correct', 'curate', 'withdraw'],
 	report: ['moderate'],
-	taxonomy: ['manage'],
+	taxonomy: ['read', 'manage'],
 	release: ['preview', 'publish'],
 	audit: ['read'],
 	dashboard: ['read', 'counts']
@@ -80,6 +82,7 @@ export const memberAc = ac.newRole({ ...ownSessions });
 export const verifierAc = ac.newRole({
 	...ownSessions,
 	quote: ['verify', 'correct'],
+	taxonomy: ['read'],
 	dashboard: ['counts']
 });
 
@@ -99,7 +102,7 @@ export const adminAc = ac.newRole({
 	...ownSessions,
 	quote: ['verify', 'correct', 'curate', 'withdraw'],
 	report: ['moderate'],
-	taxonomy: ['manage'],
+	taxonomy: ['read', 'manage'],
 	release: ['preview', 'publish'],
 	audit: ['read'],
 	dashboard: ['read', 'counts']

@@ -16,6 +16,7 @@ const PERMISSIONS: Record<string, Permission> = {
 	'quote.withdraw': { quote: ['withdraw'] },
 	'report.moderate': { report: ['moderate'] },
 	'quote.curate': { quote: ['curate'] },
+	'taxonomy.read': { taxonomy: ['read'] },
 	'taxonomy.manage': { taxonomy: ['manage'] },
 	'release.preview': { release: ['preview'] },
 	'release.publish': { release: ['publish'] },
@@ -38,6 +39,7 @@ const ADMIN = [
 	...VERIFY,
 	...MODERATE,
 	'quote.curate',
+	'taxonomy.read',
 	'taxonomy.manage',
 	'release.preview',
 	'release.publish',
@@ -52,7 +54,7 @@ const ADMIN = [
 /** The matrix in the module doc of lib/access.ts. */
 const GRANTED: Record<string, string[]> = {
 	member: OWN_SESSIONS,
-	verifier: [...OWN_SESSIONS, ...VERIFY, 'dashboard.counts'],
+	verifier: [...OWN_SESSIONS, ...VERIFY, 'taxonomy.read', 'dashboard.counts'],
 	moderator: [...OWN_SESSIONS, ...MODERATE, 'dashboard.counts'],
 	admin: ADMIN,
 	superuser: Object.keys(PERMISSIONS)

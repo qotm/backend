@@ -41,12 +41,12 @@ const actorOf = ({ user }: UserSession) => ({
 });
 
 @ApiTags('Admin · Authors')
-@TaxonomyPermissions('manage')
 @Controller({ path: 'admin/authors', version: '1' })
 export class AdminAuthorsController {
 	constructor(private service: AdminTaxonomyService) {}
 
 	@Get()
+	@TaxonomyPermissions('read')
 	@Op(
 		'admin/authors',
 		'/v1/admin/authors',
@@ -58,6 +58,7 @@ export class AdminAuthorsController {
 	}
 
 	@Post()
+	@TaxonomyPermissions('manage')
 	@Op('admin/authors/create', '/v1/admin/authors', 'Add an author (audited)')
 	@Returns(AdminAuthorEntity)
 	@ApiConflictResponse({ description: 'The slug is taken' })
@@ -69,6 +70,7 @@ export class AdminAuthorsController {
 	}
 
 	@Patch(':id')
+	@TaxonomyPermissions('manage')
 	@Op('admin/authors/:id', '/v1/admin/authors/:id', 'Edit an author (audited)')
 	@IdParam()
 	@Returns(AdminAuthorEntity)
@@ -84,12 +86,12 @@ export class AdminAuthorsController {
 }
 
 @ApiTags('Admin · Sources')
-@TaxonomyPermissions('manage')
 @Controller({ path: 'admin/sources', version: '1' })
 export class AdminSourcesController {
 	constructor(private service: AdminTaxonomyService) {}
 
 	@Get()
+	@TaxonomyPermissions('read')
 	@Op(
 		'admin/sources',
 		'/v1/admin/sources',
@@ -101,6 +103,7 @@ export class AdminSourcesController {
 	}
 
 	@Post()
+	@TaxonomyPermissions('manage')
 	@Op('admin/sources/create', '/v1/admin/sources', 'Add a source (audited)')
 	@Returns(AdminSourceEntity)
 	@ApiConflictResponse({ description: 'The slug is taken' })
@@ -112,6 +115,7 @@ export class AdminSourcesController {
 	}
 
 	@Patch(':id')
+	@TaxonomyPermissions('manage')
 	@Op('admin/sources/:id', '/v1/admin/sources/:id', 'Edit a source (audited)')
 	@IdParam()
 	@Returns(AdminSourceEntity)

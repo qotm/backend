@@ -8,6 +8,7 @@ describe('Admin taxonomy', () => {
 	let admin: string;
 	let member: string;
 	let moderator: string;
+	let verifier: string;
 
 	beforeAll(async () => {
 		app = await AppFactory.init();
@@ -23,6 +24,20 @@ describe('Admin taxonomy', () => {
 			data: { emailVerified: true }
 		});
 		moderator = (await app.signIn(email, 'secret')).cookie!;
+		const verifierEmail = 'verifier.t@example.com';
+		await auth.api.createUser({
+			body: {
+				name: 'Ver',
+				email: verifierEmail,
+				password: 'secret',
+				role: 'verifier'
+			}
+		});
+		await app.db.user.update({
+			where: { email: verifierEmail },
+			data: { emailVerified: true }
+		});
+		verifier = (await app.signIn(verifierEmail, 'secret')).cookie!;
 	});
 
 	afterAll(async () => {
@@ -40,7 +55,7 @@ describe('Admin taxonomy', () => {
 
 	describe('access', () => {
 		it.each(['authors', 'sources', 'topics'])(
-			'/v1/admin/%s is for admins only',
+			'/v1/admin/%s is for staff who manage the taxonomy',
 			async (path) => {
 				const url = `/v1/admin/${path}`;
 				expect((await app.request.get(url)).status).toBe(401);
@@ -53,6 +68,23 @@ describe('Admin taxonomy', () => {
 				expect((await get(url, su)).status).toBe(200);
 			}
 		);
+
+		it.each(['authors', 'sources'])(
+			'verifiers may look up %s (to link them), never change them',
+			async (path) => {
+				const url = `/v1/admin/${path}`;
+				expect((await get(url, verifier)).status).toBe(200);
+				expect((await post(url, { name: 'x' }, verifier)).status).toBe(403);
+				// The permission is checked before the row is looked up.
+				expect(
+					(await patch(`${url}/nope`, { name: 'x' }, verifier)).status
+				).toBe(403);
+			}
+		);
+
+		it('keeps topics for admins only', async () => {
+			expect((await get('/v1/admin/topics', verifier)).status).toBe(403);
+		});
 
 		it('refuses a member’s edit and leaves the row alone', async () => {
 			const topic = await app.db.topic.findUniqueOrThrow({

@@ -233,23 +233,27 @@ async function seedQuotes(
 
 			for (const [i, status] of path.entries()) {
 				const actorId = actorFor(status, quote, users);
+				const decision = decisionFor(status);
+				// A decision's note is on its move too, as the review service writes it.
+				const note =
+					decision && status === quote.status ? (quote.note ?? null) : null;
 				await tx.quoteEvent.create({
 					data: {
 						quoteId: row.id,
 						fromStatus: i === 0 ? null : path[i - 1],
 						toStatus: status,
 						actorId,
+						note,
 						at: dates[i]
 					}
 				});
-				const decision = decisionFor(status);
 				if (decision) {
 					await tx.reviewDecision.create({
 						data: {
 							...decision,
 							quoteId: row.id,
 							actorId,
-							note: status === quote.status ? (quote.note ?? null) : null,
+							note,
 							checklist:
 								decision.kind === 'CURATION'
 									? Object.fromEntries(
