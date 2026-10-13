@@ -6,6 +6,7 @@ import type { Storage } from '#lib/storage.js';
 import { TrackedStorage } from '#app/workers/releases/testing.js';
 import {
 	MIN_FONT_SIZE,
+	MIN_TERMINAL_SIZE,
 	MIN_TITLE_SIZE,
 	SHARE_HEIGHT,
 	SHARE_WIDTH,
@@ -88,6 +89,28 @@ describe('renderShareImage', () => {
 		]);
 	});
 
+	it('renders the terminal card as the CLI pull quote: clay marks beside the words', async () => {
+		const key = `${prefix}/terminal.png`;
+		const result = await renderShareImage(browser, storage, {
+			key,
+			variant: 'terminal',
+			card: {
+				id: 'q_8f2k1c',
+				text: 'Simplicity is prerequisite for reliability.',
+				author: 'Edsger W. Dijkstra'
+			}
+		});
+		expect(result.fontSize).toBe(40); // 42 steps down once to fit
+		const read = await pixels((await storage.fetch(key)).bytes, [
+			[130, 300], // the marks' first block, below the `~ > qotm` line
+			[1150, 600] // ink
+		]);
+		expect(read.points).toEqual([
+			[0xc6, 0x74, 0x57],
+			[0x14, 0x12, 0x10]
+		]);
+	});
+
 	it.each(['quote', 'terminal'] as const)(
 		'fits Hoare’s 220 characters on the %s card without clipping',
 		async (variant) => {
@@ -97,7 +120,9 @@ describe('renderShareImage', () => {
 				variant,
 				card: { id: 'q_0h5w3q', text: HOARE, author: 'C. A. R. Hoare' }
 			});
-			expect(result.fontSize).toBeGreaterThanOrEqual(MIN_FONT_SIZE);
+			expect(result.fontSize).toBeGreaterThanOrEqual(
+				variant === 'terminal' ? MIN_TERMINAL_SIZE : MIN_FONT_SIZE
+			);
 			const read = await pixels((await storage.fetch(key)).bytes, [[600, 20]]);
 			expect(read.size).toEqual([SHARE_WIDTH, SHARE_HEIGHT]);
 			// Ink ground for the terminal card, paper for the quote card.

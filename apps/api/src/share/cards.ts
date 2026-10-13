@@ -8,6 +8,11 @@ export type ShareVariant = (typeof SHARE_VARIANTS)[number];
  * image gets a new key and is rendered again.
  */
 export const SHARE_TEMPLATE_VERSION = 1;
+/**
+ * The terminal card's own version: 2 is the CLI's pull quote (2026-10-13).
+ * Bumping it renders only the terminal images again, not every quote card.
+ */
+export const TERMINAL_TEMPLATE_VERSION = 2;
 
 /** What a ShareCard shows: the brand kit's quote card or terminal card. */
 export interface ShareCard {
@@ -41,7 +46,15 @@ export function shareCardOf(quote: {
  */
 export function shareRevision(card: ShareCard, variant: ShareVariant) {
 	return createHash('sha256')
-		.update(JSON.stringify([SHARE_TEMPLATE_VERSION, variant, card]))
+		.update(
+			JSON.stringify([
+				variant === 'terminal'
+					? TERMINAL_TEMPLATE_VERSION
+					: SHARE_TEMPLATE_VERSION,
+				variant,
+				card
+			])
+		)
 		.digest('hex')
 		.slice(0, 12);
 }

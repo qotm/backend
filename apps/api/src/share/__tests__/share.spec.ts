@@ -45,6 +45,12 @@ describe('share cards', () => {
 			`share/q_8f2k1c/quote-${rev}.png`
 		);
 	});
+
+	it('keeps the quote card key when only the terminal template changes', () => {
+		// Pinned: a template bump moves only its own variant's keys.
+		expect(shareRevision(shareCardOf(quote), 'quote')).toBe('c9b6c6f809c7');
+		expect(shareRevision(shareCardOf(quote), 'terminal')).toBe('14ba44da9190');
+	});
 });
 
 describe('page cards', () => {

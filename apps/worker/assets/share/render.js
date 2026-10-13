@@ -128,3 +128,70 @@ window.renderPageCard = async function (card, height, min) {
 	}
 	return bottom() <= footTop() ? size : null;
 };
+
+/*
+ * The terminal card: the CLI's default pull quote (cli/src/render.ts) in a
+ * terminal window. One size for the whole body, as in a terminal, stepped
+ * down until the last prompt clears the bottom edge. Resolves to that size.
+ */
+/*
+ * The CLI's marks, "▄▄ ▄▄" over "▀█ ▀█": drawn on their 5×2 cell grid (each
+ * cell two half-rows) rather than typed, since no bundled face has the block
+ * glyphs. Mirrors the web's ShareCard.
+ */
+var MARKS = (function () {
+	var cells = [[0, 1], [1, 1], [3, 1], [4, 1], [0, 2], [1, 2], [3, 2], [4, 2], [1, 3], [4, 3]];
+	return (
+		'<svg viewBox="0 0 5 4" preserveAspectRatio="none" width="100%" height="100%" fill="currentColor">' +
+		cells.map(function (c) { return '<rect x="' + c[0] + '" y="' + c[1] + '" width="1.02" height="1.02"/>'; }).join('') +
+		'</svg>'
+	);
+})();
+
+window.renderTerminalCard = async function (card, height, start, min) {
+	const h = React.createElement;
+	const root = ReactDOM.createRoot(document.getElementById('root'));
+	const ref = card.id ? '  ·  q/' + card.id.replace(/^q_/, '') : '';
+	ReactDOM.flushSync(() =>
+		root.render(
+			h(
+				'div',
+				{ className: 'qk-term-card', role: 'img', 'aria-label': '“' + card.text + '” — ' + card.author },
+				h('div', { className: 'qk-term-card__bar' }, h('i'), h('i'), h('i')),
+				h(
+					'div',
+					{ className: 'qk-term-card__body' },
+					h('div', null, h('span', { className: 'qk-term-card__accent' }, '~ >'), ' qotm'),
+					h(
+						'div',
+						{ className: 'qk-term-card__row' },
+						h('span', { className: 'qk-term-card__marks', dangerouslySetInnerHTML: { __html: MARKS } }),
+						h(
+							'div',
+							{ className: 'qk-term-card__col' },
+							h('div', { className: 'qk-term-card__text' }, card.text),
+							h(
+								'div',
+								{ className: 'qk-term-card__by' },
+								h('span', { className: 'qk-term-card__accent' }, '—'),
+								'  ' + card.author,
+								ref ? h('span', { className: 'qk-term-card__ref' }, ref) : null
+							)
+						)
+					),
+					h('div', { className: 'qk-term-card__cmd' }, h('span', { className: 'qk-term-card__accent' }, '~ >'), ' ', h('span', { className: 'qk-term-card__cursor' }))
+				)
+			)
+		)
+	);
+	await document.fonts.ready;
+	const body = document.querySelector('.qk-term-card__body');
+	const fits = () => document.querySelector('.qk-term-card__cmd').getBoundingClientRect().bottom <= height - 24;
+	let size = start;
+	body.style.fontSize = size + 'px';
+	while (!fits() && size > min) {
+		size -= 2;
+		body.style.fontSize = size + 'px';
+	}
+	return fits() ? size : null;
+};

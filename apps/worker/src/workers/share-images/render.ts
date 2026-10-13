@@ -10,6 +10,9 @@ export const SHARE_WIDTH = 1200;
 export const SHARE_HEIGHT = 630;
 /** Below this the quote is no longer a share card; it cannot happen within 280 characters. */
 export const MIN_FONT_SIZE = 24;
+/** The terminal card's one size starts by length (as the web's ShareCard) and steps down to this. */
+export const MIN_TERMINAL_SIZE = 20;
+const terminalStart = (text: string) => (text.length <= 60 ? 42 : text.length <= 120 ? 36 : 30);
 /** A page card's title steps down to this; an 80-character author credit fits well above it. */
 export const MIN_TITLE_SIZE = 40;
 
@@ -60,11 +63,27 @@ function page() {
 	unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: block;
 	src: url(data:font/woff2;base64,${font('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2')}) format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 700; font-display: block;
+	src: url(data:font/woff2;base64,${font('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-700-normal.woff2')}) format("woff2"); }
 ${readFileSync(join(assets, 'tokens.css'), 'utf8')}
 ${readFileSync(join(assets, 'qotm-kit.css'), 'utf8')}
 html, body { margin: 0; width: ${SHARE_WIDTH}px; height: ${SHARE_HEIGHT}px; overflow: hidden; }
 .qk-share-wrap { border: 0; border-radius: 0; }
 .qk-share__cursor { animation: none; }
+/* The terminal card (renderTerminalCard): the CLI's pull quote in a terminal window. */
+.qk-term-card { width: ${SHARE_WIDTH}px; height: ${SHARE_HEIGHT}px; box-sizing: border-box; background: var(--qotm-ink); color: var(--qotm-paper); overflow: hidden; }
+.qk-term-card__bar { display: flex; gap: 14px; padding: 36px 48px; border-bottom: 2px solid var(--qotm-ink-rule); }
+.qk-term-card__bar i { width: 22px; height: 22px; border-radius: 50%; background: var(--qotm-stone-600); display: block; }
+.qk-term-card__body { padding: 44px 72px 0; font-family: var(--qotm-font-mono); line-height: 1.45; }
+.qk-term-card__accent { color: var(--qotm-clay-400); }
+.qk-term-card__row { display: flex; gap: 2ch; padding-left: 2ch; margin-top: 1.45em; }
+.qk-term-card__marks { display: block; width: 3em; height: 2.9em; flex-shrink: 0; color: var(--qotm-clay-400); }
+.qk-term-card__col { min-width: 0; }
+.qk-term-card__text { font-weight: 700; text-wrap: balance; }
+.qk-term-card__by { margin-top: 1.45em; white-space: pre-wrap; color: var(--qotm-stone-400); }
+.qk-term-card__ref { color: var(--qotm-stone-600); }
+.qk-term-card__cmd { margin-top: 1.45em; }
+.qk-term-card__cursor { display: inline-block; width: 0.6em; height: 1.1em; vertical-align: -0.2em; background: var(--qotm-paper); }
 /* The page card (renderPageCard): the quote card's frame, a name instead of a quote. */
 .qk-og { padding: 96px 96px 0 90px; }
 .qk-og__eyebrow { font-family: var(--qotm-font-mono); font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--qotm-clay-500); }
@@ -105,7 +124,9 @@ export async function renderCard(
 		const fontSize = (await tab.evaluate(
 			variant === 'page'
 				? `window.renderPageCard(${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_TITLE_SIZE})`
-				: `window.renderShareCard(${JSON.stringify(variant)}, ${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_FONT_SIZE})`
+				: variant === 'terminal'
+					? `window.renderTerminalCard(${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${terminalStart((card as ShareCard).text)}, ${MIN_TERMINAL_SIZE})`
+					: `window.renderShareCard(${JSON.stringify(variant)}, ${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_FONT_SIZE})`
 		)) as number | null;
 		if (fontSize === null) {
 			const what = 'id' in card ? `Quote ${card.id}` : `Page ${card.path}`;
