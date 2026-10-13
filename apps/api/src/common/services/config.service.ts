@@ -193,7 +193,8 @@ namespace Config {
 			S3_BUCKET_NAME: str(),
 			S3_ACCESS_KEY_ID: z.string().optional(),
 			S3_SECRET_ACCESS_KEY: z.string().optional(),
-			RELEASES_BASE_URL: z.url().optional(),
+			// Empty means unset (a compose file passes `${RELEASES_BASE_URL}` as '').
+			RELEASES_BASE_URL: z.url().or(z.literal('')).optional(),
 			RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
 			RATE_LIMIT_TTL: num().default(60_000),
 			RATE_LIMIT_MAX: num().default(120),

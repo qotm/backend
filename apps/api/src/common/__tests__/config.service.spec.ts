@@ -53,4 +53,14 @@ describe('ConfigService', () => {
 			});
 		}
 	});
+
+	// A compose file passes an unset `${VAR}` as '', which must read as unset.
+	it('accepts an empty RELEASES_BASE_URL, and rejects one that is not a URL', () => {
+		const parse = (RELEASES_BASE_URL: string) =>
+			Config.schema.shape.RELEASES_BASE_URL.safeParse(RELEASES_BASE_URL)
+				.success;
+		expect(parse('')).toBe(true);
+		expect(parse('https://releases.qotm.dev')).toBe(true);
+		expect(parse('releases.qotm.dev')).toBe(false);
+	});
 });
