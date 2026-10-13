@@ -23,7 +23,9 @@ import { CURATION_CHECKLIST } from '../src/review/decisions';
  * Each move is a QuoteEvent with the evidence in its note, plus the review
  * decision and audit row the review service would write.
  *
- * Idempotent: a quote whose author already has the same text is skipped, and
+ * Idempotent: a quote whose author already has the same text is skipped
+ * (unless this account imported it for review and the corpus now verifies
+ * it: then it is verified), and
  * authors, sources and topics are matched before they are created.
  */
 
@@ -189,15 +191,82 @@ function pathOf(q: CorpusQuote): S[] {
 	return q.curate ? [...verified, S.CURATION_REVIEW, S.CURATED] : verified;
 }
 
+/**
+ * A quote this account imported for review that the corpus now verifies (a
+ * re-tiered corpus): moved to VERIFIED with the decision, event and audit
+ * row a verification writes. Anything else already there is left alone.
+ */
+async function promote(
+	quote: {
+		id: string;
+		publicId: string;
+		status: S;
+		contributorId: string | null;
+	},
+	q: CorpusQuote,
+	actor: { id: string; handle: string }
+) {
+	if (
+		q.tier !== 'A' ||
+		quote.contributorId !== actor.id ||
+		quote.status !== S.UNDER_REVIEW
+	)
+		return false;
+	assertTransition(QuoteType.CANONICAL, S.UNDER_REVIEW, S.VERIFIED);
+	const now = new Date();
+	const note = `Verified on import. ${q.evidence}`.slice(0, 1000);
+	await db.$transaction(async (tx: Prisma.TransactionClient) => {
+		const { count } = await tx.quote.updateMany({
+			where: { id: quote.id, status: S.UNDER_REVIEW },
+			data: {
+				status: S.VERIFIED,
+				verifierId: actor.id,
+				verifiedAt: now,
+				publishedAt: now
+			}
+		});
+		if (!count) return;
+		await tx.quoteEvent.create({
+			data: {
+				quoteId: quote.id,
+				fromStatus: S.UNDER_REVIEW,
+				toStatus: S.VERIFIED,
+				actorId: actor.id,
+				note,
+				at: now
+			}
+		});
+		await tx.reviewDecision.create({
+			data: {
+				kind: 'VERIFICATION',
+				outcome: 'VERIFY',
+				quoteId: quote.id,
+				actorId: actor.id,
+				note
+			}
+		});
+		await recordAudit(tx, {
+			actor,
+			action: 'quote.verified',
+			target: { type: 'quote', id: quote.publicId },
+			note
+		});
+	});
+	return true;
+}
+
 async function importQuote(
 	q: CorpusQuote,
 	actor: { id: string; handle: string },
 	topics: Map<string, string>,
 	authors: Map<string, string>
-): Promise<'created' | 'exists'> {
+): Promise<'created' | 'exists' | 'promoted'> {
 	const author = await authorId(q.author, authors);
-	if (await db.quote.findFirst({ where: { authorId: author, text: q.text } }))
-		return 'exists';
+	const existing = await db.quote.findFirst({
+		where: { authorId: author, text: q.text }
+	});
+	if (existing)
+		return (await promote(existing, q, actor)) ? 'promoted' : 'exists';
 	const source = q.source ? await sourceId(q.source, author) : null;
 	const path = pathOf(q);
 	path
@@ -303,7 +372,7 @@ async function main() {
 	const actor = await importer();
 	const topics = await topicIds(corpus);
 	const authors = new Map<string, string>();
-	const counts = { created: 0, exists: 0, failed: 0 };
+	const counts = { created: 0, promoted: 0, exists: 0, failed: 0 };
 	// Each quote's publishedAt is when it was imported, so the file's order
 	// (grouped by author and topic) would be the latest feed's. Shuffle it,
 	// the same way on every run.
@@ -322,7 +391,7 @@ async function main() {
 		if ((i + 1) % 250 === 0) console.log(`${i + 1}/${corpus.quotes.length}`);
 	}
 	console.log(
-		`${counts.created} imported, ${counts.exists} already there, ${counts.failed} failed (of ${corpus.quotes.length})`
+		`${counts.created} imported, ${counts.promoted} verified now, ${counts.exists} already there, ${counts.failed} failed (of ${corpus.quotes.length})`
 	);
 	if (counts.failed) process.exitCode = 1;
 }
