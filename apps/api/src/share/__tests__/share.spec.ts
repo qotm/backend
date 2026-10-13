@@ -1,5 +1,13 @@
 import { inflateSync } from 'node:zlib';
-import { shareCardOf, shareKey, shareRevision, solidPng } from 'share';
+import {
+	pageKey,
+	pageRevision,
+	shareCardOf,
+	shareKey,
+	shareRevision,
+	solidPng,
+	type PageCard
+} from 'share';
 
 const quote = {
 	publicId: 'q_8f2k1c',
@@ -36,6 +44,42 @@ describe('share cards', () => {
 		expect(shareKey('q_8f2k1c', 'quote', rev)).toBe(
 			`share/q_8f2k1c/quote-${rev}.png`
 		);
+	});
+});
+
+describe('page cards', () => {
+	const author: PageCard = {
+		kind: 'author',
+		path: '/authors/dijkstra',
+		eyebrow: 'Author',
+		title: 'Edsger W. Dijkstra',
+		line: '1930–2002 · computer scientist',
+		quote: {
+			text: 'Simplicity is prerequisite for reliability.',
+			author: 'Edsger W. Dijkstra'
+		}
+	};
+
+	it('keys an author, a topic and the site card by kind, slug and revision', () => {
+		const rev = pageRevision(author);
+		expect(rev).toMatch(/^[0-9a-f]{12}$/);
+		expect(pageKey(author, rev)).toBe(`og/authors/dijkstra-${rev}.png`);
+		expect(
+			pageKey(
+				{ ...author, kind: 'topic', path: '/topics/software-design' },
+				rev
+			)
+		).toBe(`og/topics/software-design-${rev}.png`);
+		expect(pageKey({ ...author, kind: 'site', path: '/' }, rev)).toBe(
+			`og/site-${rev}.png`
+		);
+	});
+
+	it('is a new revision when its featured quote or line changes', () => {
+		const rev = pageRevision(author);
+		expect(pageRevision({ ...author })).toBe(rev);
+		expect(pageRevision({ ...author, quote: null })).not.toBe(rev);
+		expect(pageRevision({ ...author, line: '1930–2002' })).not.toBe(rev);
 	});
 });
 

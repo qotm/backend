@@ -8,8 +8,13 @@ import type { Queue } from 'bullmq';
 import { AppFactory } from '@test/factory/app';
 import { TEST_ADMIN, TEST_USER } from '@test/factory/constants';
 import {
+	FALLBACK_PNG,
 	RENDER_SHARE_IMAGE,
 	SHARE_IMAGES_QUEUE,
+	SITE_CARD,
+	ShareImagesService,
+	pageKey,
+	pageRevision,
 	shareCardOf,
 	shareKey,
 	shareRevision
@@ -61,10 +66,18 @@ describe('Share images', () => {
 		);
 	}
 
+	const siteKey = pageKey(SITE_CARD, pageRevision(SITE_CARD));
+	/** Every queued render, prioritised (drawn ahead) or not. */
+	const queued = () => queue.getJobs(['waiting', 'prioritized']);
+
 	beforeAll(async () => {
 		app = await AppFactory.init();
 		await app.refresh();
 		queue = app.instance.get(getQueueToken(SHARE_IMAGES_QUEUE));
+		// og:images wait up to 8s for a render; a few hundred ms is enough here.
+		const service = app.instance.get(ShareImagesService);
+		const og = service.og.bind(service);
+		vi.spyOn(service, 'og').mockImplementation((target) => og(target, 600));
 		const { region, endpoint, accessKeyId, secretAccessKey } = app.config.s3;
 		s3 = new S3Client({
 			region,
@@ -89,9 +102,9 @@ describe('Share images', () => {
 
 	const get = (path: string) => app.request.get(path).redirects(0);
 
-	it('serves a placeholder and queues one render until the image exists', async () => {
+	it('serves the Share dialog a placeholder and queues one render until the image exists', async () => {
 		const row = await quote();
-		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
+		const res = await get(`/v1/quotes/${row.publicId}/share-image`);
 		expect(res.status).toBe(200);
 		expect(res.headers['content-type']).toBe('image/png');
 		expect(res.headers['cache-control']).toBe('no-store');
@@ -113,6 +126,39 @@ describe('Share images', () => {
 			},
 			opts: { attempts: 3, backoff: { type: 'exponential', delay: 15_000 } }
 		});
+	});
+
+	it('never gives an unfurler the placeholder: the bundled card while nothing is drawn', async () => {
+		const row = await quote();
+		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
+		expect(res.status).toBe(200);
+		expect(res.headers['x-og-image']).toBe('fallback');
+		expect(res.headers['cache-control']).toBe('no-store');
+		expect(Buffer.compare(res.body, FALLBACK_PNG)).toBe(0);
+		// The quote's card and the site card are both on their way.
+		const keys = (await queued()).map((j) => j.data.key).sort();
+		expect(keys).toEqual([keyOf(row), siteKey].sort());
+	});
+
+	it('falls back to the rendered site card', async () => {
+		const row = await quote();
+		await rendered(siteKey);
+		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
+		expect(res.status).toBe(302);
+		expect(res.headers['x-og-image']).toBe('fallback');
+		expect(res.headers['cache-control']).toBe('no-store');
+		expect(res.headers.location).toMatch(new RegExp(`/${siteKey}$`));
+	});
+
+	it('waits for a render that lands while the unfurler waits', async () => {
+		const row = await quote();
+		const pending = get(`/v1/quotes/${row.publicId}/og.png`).then((r) => r);
+		await new Promise((r) => setTimeout(r, 150));
+		await rendered(keyOf(row));
+		const res = await pending;
+		expect(res.status).toBe(302);
+		expect(res.headers['x-og-image']).toBe('render');
+		expect(res.headers.location).toMatch(new RegExp(`/${keyOf(row)}$`));
 	});
 
 	it('renders each variant separately', async () => {
@@ -188,13 +234,98 @@ describe('Share images', () => {
 			include: { author: true, contributor: true }
 		});
 		expect(keyOf(corrected)).not.toBe(keyOf(row));
-		const keys = (await queue.getJobs(['waiting']))
-			.map((j) => j.data.key)
-			.sort();
-		expect(keys).toEqual(
+		const jobs = await queued();
+		expect(jobs.map((j) => j.data.key).sort()).toEqual(
 			[keyOf(corrected), keyOf(corrected, 'terminal')].sort()
 		);
+		// Drawn ahead: behind any render someone is waiting for.
+		expect(jobs.every((j) => j.opts.priority === 10)).toBe(true);
 		// The old revision's redirect is gone: the page now asks for the new one.
-		expect((await get(`/v1/quotes/${row.publicId}/og.png`)).status).toBe(200);
+		const after = await get(`/v1/quotes/${row.publicId}/og.png`);
+		expect(after.headers['x-og-image']).toBe('fallback');
+		// …and someone waiting moves its render to the front.
+		const job = (await queued()).find((j) => j.data.key === keyOf(corrected))!;
+		expect(await job.getState()).toBe('waiting');
+	});
+
+	it("draws an author's card: name, lifespan and their shortest curated quote", async () => {
+		await quote('CURATED', 'Simplicity is prerequisite for reliability.');
+		await quote(
+			'CURATED',
+			'The question of whether a computer can think is no more interesting than the question of whether a submarine can swim.'
+		);
+		await app.db.author.update({
+			where: { slug: 'dijkstra' },
+			data: {
+				bornYear: 1930,
+				diedYear: 2002,
+				description: 'computer scientist'
+			}
+		});
+		const shortest = (
+			await app.db.quote.findMany({
+				where: { author: { slug: 'dijkstra' }, status: 'CURATED' }
+			})
+		).sort((a, b) => a.text.length - b.text.length)[0].text;
+		const res = await get('/v1/authors/dijkstra/og.png');
+		expect(res.headers['x-og-image']).toBe('fallback');
+		const job = (await queued()).find(
+			(j) => j.data.variant === 'page' && j.data.card.kind === 'author'
+		);
+		expect(job!.data).toMatchObject({
+			key: expect.stringMatching(/^og\/authors\/dijkstra-[0-9a-f]{12}\.png$/),
+			card: {
+				path: '/authors/dijkstra',
+				eyebrow: 'Author',
+				title: 'Edsger W. Dijkstra',
+				line: '1930–2002 · computer scientist',
+				quote: { text: shortest, author: 'Edsger W. Dijkstra' }
+			}
+		});
+		expect((await get('/v1/authors/nobody-at-all/og.png')).status).toBe(404);
+	});
+
+	it("draws a topic's card, and the site's", async () => {
+		const topic = await app.db.topic.upsert({
+			where: { slug: 'og-debugging' },
+			update: {},
+			create: {
+				slug: 'og-debugging',
+				name: 'og debugging',
+				description: 'Finding out why.'
+			}
+		});
+		await get(`/v1/topics/${topic.slug}/og.png`);
+		const job = (await queued()).find(
+			(j) => j.data.variant === 'page' && j.data.card.kind === 'topic'
+		);
+		expect(job!.data.card).toMatchObject({
+			path: `/topics/${topic.slug}`,
+			eyebrow: 'Topic',
+			line: topic.description
+		});
+		expect((await get('/v1/topics/no-such-topic/og.png')).status).toBe(404);
+
+		await rendered(siteKey);
+		const site = await get('/v1/og.png');
+		expect(site.status).toBe(302);
+		expect(site.headers['x-og-image']).toBe('render');
+	});
+
+	it('backfills every card not drawn yet, behind waiting renders', async () => {
+		const drawn = await quote();
+		const missing = await quote();
+		const hidden = await quote('PRIVATE');
+		await rendered(keyOf(drawn));
+		const service = app.instance.get(ShareImagesService);
+		const counts = await service.backfill();
+		const keys = (await queue.getJobs(['prioritized'])).map((j) => j.data.key);
+		expect(keys).toContain(keyOf(missing));
+		expect(keys).not.toContain(keyOf(drawn));
+		expect(keys).not.toContain(keyOf(hidden));
+		expect(keys.some((k) => k.startsWith('og/authors/dijkstra-'))).toBe(true);
+		expect(keys.some((k) => k.startsWith('og/topics/'))).toBe(true);
+		expect(counts.queued).toBe(keys.length);
+		expect(await queue.getJobs(['waiting'])).toHaveLength(0);
 	});
 });

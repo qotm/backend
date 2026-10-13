@@ -1,4 +1,11 @@
-import { Controller, Get, Param, Query, Res } from '@nestjs/common';
+import {
+	applyDecorators,
+	Controller,
+	Get,
+	Param,
+	Query,
+	Res
+} from '@nestjs/common';
 import {
 	ApiFoundResponse,
 	ApiNotFoundResponse,
@@ -12,8 +19,9 @@ import type { Response } from 'express';
 import { z } from 'zod';
 import { IdParam } from 'common/decorators';
 import { SHARE_VARIANTS, type ShareVariant } from '../cards';
+import { FALLBACK_PNG } from '../fallback';
 import { PLACEHOLDER_PNG } from '../placeholder';
-import { ShareImagesService } from '../services';
+import { ShareImagesService, type OgTarget } from '../services';
 
 const VariantQuery = z.object({
 	variant: z.enum(SHARE_VARIANTS).default('quote')
@@ -25,6 +33,42 @@ const REDIRECT_CACHE = 'public, max-age=300';
 const PNG = {
 	content: { 'image/png': { schema: { type: 'string', format: 'binary' } } }
 };
+
+/** How an og:image route answers; `X-Og-Image` says which it was (the web server's proxy reads it). */
+const OgResponses = () =>
+	applyDecorators(
+		ApiFoundResponse({
+			description:
+				'The rendered image, or (X-Og-Image: fallback) the site card while this one renders'
+		}),
+		ApiOkResponse({
+			description:
+				'X-Og-Image: fallback: the bundled brand card, while the render is still queued',
+			...PNG
+		}),
+		ApiNotFoundResponse({ description: 'Unknown, private or not public' })
+	);
+
+/**
+ * Answers an og:image route. Unfurlers keep the first image they fetch, so
+ * this waits for the render (ShareImagesService.og) and never sends the
+ * placeholder; a fallback is marked no-store so a later fetch gets the card.
+ */
+export async function sendOg(
+	service: ShareImagesService,
+	res: Response,
+	target: OgTarget
+) {
+	const image = await service.og(target);
+	res.setHeader('X-Og-Image', image.fallback ? 'fallback' : 'render');
+	res.setHeader('Cache-Control', image.fallback ? 'no-store' : REDIRECT_CACHE);
+	if (!image.fallback) res.setHeader('ETag', `"${image.revision}"`);
+	if (image.url) {
+		res.redirect(302, image.url);
+		return;
+	}
+	res.type('png').send(FALLBACK_PNG);
+}
 
 /** Public: the Share dialog's image and each quote page's og:image. */
 @ApiTags('Share')
@@ -57,14 +101,13 @@ export class ShareImagesController {
 	@ApiOperation({
 		operationId: 'quotes/:id/og.png',
 		summary: '/v1/quotes/:id/og.png',
-		description: 'The og:image of /q/:id: the quote card at 1200×630.'
+		description:
+			'The og:image of /q/:id: the quote card at 1200×630. Waits up to 8s for a render, then falls back to the site card.'
 	})
 	@IdParam()
-	@ApiFoundResponse({ description: 'The rendered image' })
-	@ApiOkResponse({ description: 'A placeholder; a render is queued', ...PNG })
-	@ApiNotFoundResponse({ description: 'Unknown, private or not public' })
+	@OgResponses()
 	og(@Param('id') id: string, @Res() res: Response) {
-		return this.send(res, id, 'quote');
+		return sendOg(this.service, res, { kind: 'quote', id });
 	}
 
 	private async send(res: Response, id: string, variant: ShareVariant) {
@@ -78,5 +121,54 @@ export class ShareImagesController {
 		res.setHeader('Cache-Control', 'no-store');
 		res.setHeader('Retry-After', '5');
 		res.type('png').send(PLACEHOLDER_PNG);
+	}
+}
+
+/** Public: the og:images of the author and topic pages and of the site's other pages. */
+@ApiTags('Share')
+@AllowAnonymous()
+@Controller({ version: '1' })
+export class OgImagesController {
+	constructor(private service: ShareImagesService) {}
+
+	@Get('authors/:slug/og.png')
+	@ApiOperation({
+		operationId: 'authors/:slug/og.png',
+		summary: '/v1/authors/:slug/og.png',
+		description:
+			"The og:image of /authors/:slug: the author's card at 1200×630."
+	})
+	@OgResponses()
+	author(@Param('slug') slug: string, @Res() res: Response) {
+		return sendOg(this.service, res, {
+			kind: 'author',
+			slug: slug.slice(0, 80)
+		});
+	}
+
+	@Get('topics/:slug/og.png')
+	@ApiOperation({
+		operationId: 'topics/:slug/og.png',
+		summary: '/v1/topics/:slug/og.png',
+		description: "The og:image of /topics/:slug: the topic's card at 1200×630."
+	})
+	@OgResponses()
+	topic(@Param('slug') slug: string, @Res() res: Response) {
+		return sendOg(this.service, res, {
+			kind: 'topic',
+			slug: slug.slice(0, 60)
+		});
+	}
+
+	@Get('og.png')
+	@ApiOperation({
+		operationId: 'og.png',
+		summary: '/v1/og.png',
+		description:
+			'The og:image of the home page, the feeds and profiles: the site card at 1200×630.'
+	})
+	@OgResponses()
+	site(@Res() res: Response) {
+		return sendOg(this.service, res, { kind: 'site' });
 	}
 }

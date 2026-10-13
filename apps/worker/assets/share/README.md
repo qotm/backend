@@ -13,3 +13,9 @@ component, so the PNGs match the design system:
 
 When the kit changes, replace these files and bump `SHARE_TEMPLATE_VERSION`
 in `apps/api/src/share/cards.ts`, so every image renders again.
+
+`render.js` is ours: `renderShareCard` draws the kit's ShareCard, and
+`renderPageCard` draws an author's, topic's or the site's og:image in the
+same frame (its styles are in `render.ts`). The API bundles the rendered site
+card as its last-resort og:image (`apps/api/src/share/fallback.ts`):
+regenerate it when the page card changes.

@@ -278,6 +278,8 @@ export class ReviewService {
 			});
 		}, ISOLATION);
 		await this.notify(actor, publicId, rule.outcome, input.note);
+		// Now public, or still: draw its share images before anyone shares it.
+		await this.share.rerender(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -308,6 +310,8 @@ export class ReviewService {
 			}
 		}, ISOLATION);
 		await this.notify(actor, publicId, rule.outcome, input.note);
+		// Now public, or still: draw its share images before anyone shares it.
+		await this.share.rerender(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 

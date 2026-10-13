@@ -6,6 +6,7 @@ import type { Storage } from '#lib/storage.js';
 import { TrackedStorage } from '#app/workers/releases/testing.js';
 import {
 	MIN_FONT_SIZE,
+	MIN_TITLE_SIZE,
 	SHARE_HEIGHT,
 	SHARE_WIDTH,
 	renderShareImage
@@ -105,6 +106,32 @@ describe('renderShareImage', () => {
 			);
 		}
 	);
+
+	it('renders a page card in the quote card’s frame, dropping a quote that does not fit', async () => {
+		const key = `${prefix}/author.png`;
+		const result = await renderShareImage(browser, storage, {
+			key,
+			variant: 'page',
+			card: {
+				kind: 'author',
+				path: '/authors/abelson-sussman',
+				eyebrow: 'Author',
+				title: 'Harold Abelson & Gerald Jay Sussman & Julie Sussman',
+				line: null,
+				quote: { text: HOARE.slice(0, 140), author: 'Harold Abelson' }
+			}
+		});
+		expect(result.fontSize).toBeGreaterThanOrEqual(MIN_TITLE_SIZE);
+		const read = await pixels((await storage.fetch(key)).bytes, [
+			[8, 300], // the clay edge
+			[1150, 30] // paper
+		]);
+		expect(read.size).toEqual([SHARE_WIDTH, SHARE_HEIGHT]);
+		expect(read.points).toEqual([
+			[0xb8, 0x5c, 0x3e],
+			[0xf4, 0xf2, 0xed]
+		]);
+	});
 
 	it('fails for good on a card that cannot fit', async () => {
 		await expect(

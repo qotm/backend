@@ -10,6 +10,8 @@ export const SHARE_WIDTH = 1200;
 export const SHARE_HEIGHT = 630;
 /** Below this the quote is no longer a share card; it cannot happen within 280 characters. */
 export const MIN_FONT_SIZE = 24;
+/** A page card's title steps down to this; an 80-character author credit fits well above it. */
+export const MIN_TITLE_SIZE = 40;
 
 export interface ShareCard {
 	id: string;
@@ -17,12 +19,20 @@ export interface ShareCard {
 	author: string;
 }
 
-/** As the API enqueues it (`apps/api/src/share/jobs.ts`, RenderShareImage). */
-export interface RenderShareImage {
-	key: string;
-	variant: 'quote' | 'terminal';
-	card: ShareCard;
+/** An author's, topic's or the site's og:image (`apps/api/src/share/cards.ts`, PageCard). */
+export interface PageCard {
+	kind: 'author' | 'topic' | 'site';
+	path: string;
+	eyebrow: string;
+	title: string;
+	line: string | null;
+	quote: { text: string; author: string } | null;
 }
+
+/** As the API enqueues it (`apps/api/src/share/jobs.ts`, RenderShareImage). */
+export type RenderShareImage =
+	| { key: string; variant: 'quote' | 'terminal'; card: ShareCard }
+	| { key: string; variant: 'page'; card: PageCard };
 
 const here = dirname(fileURLToPath(import.meta.url));
 // src/workers/share-images (dev) and dist/src/workers/share-images (build)
@@ -55,6 +65,15 @@ ${readFileSync(join(assets, 'qotm-kit.css'), 'utf8')}
 html, body { margin: 0; width: ${SHARE_WIDTH}px; height: ${SHARE_HEIGHT}px; overflow: hidden; }
 .qk-share-wrap { border: 0; border-radius: 0; }
 .qk-share__cursor { animation: none; }
+/* The page card (renderPageCard): the quote card's frame, a name instead of a quote. */
+.qk-og { padding: 96px 96px 0 90px; }
+.qk-og__eyebrow { font-family: var(--qotm-font-mono); font-size: 24px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--qotm-clay-500); }
+.qk-og__title { margin-top: 22px; font-family: var(--qotm-font-display); font-weight: 600; font-size: 84px; line-height: 1.08; letter-spacing: -0.015em; max-width: 1000px; text-wrap: balance; }
+.qk-og__line { margin-top: 18px; font-family: var(--qotm-font-mono); font-size: 26px; color: var(--qotm-stone-600); max-width: 1000px; text-wrap: balance; }
+.qk-og__quote { margin-top: 44px; padding-left: 28px; border-left: 4px solid var(--qotm-clay-100, #eedbd0); max-width: 940px; }
+.qk-og__text { font-family: var(--qotm-font-display); font-weight: 600; font-size: 36px; line-height: 1.25; text-wrap: pretty; }
+.qk-og .qk-share__by { margin-top: 16px; font-size: 22px; }
+.qk-og .qk-share__foot { justify-content: space-between; }
 </style>
 <script>${readFileSync(join(assets, 'react.production.min.js'), 'utf8')}</script>
 <script>${readFileSync(join(assets, 'react-dom.production.min.js'), 'utf8')}</script>
@@ -73,7 +92,7 @@ html, body { margin: 0; width: ${SHARE_WIDTH}px; height: ${SHARE_HEIGHT}px; over
 export async function renderCard(
 	browser: Browser,
 	variant: RenderShareImage['variant'],
-	card: ShareCard
+	card: ShareCard | PageCard
 ) {
 	const tab = await browser.newPage();
 	try {
@@ -84,12 +103,13 @@ export async function renderCard(
 		});
 		await tab.setContent(page(), { waitUntil: 'load' });
 		const fontSize = (await tab.evaluate(
-			`window.renderShareCard(${JSON.stringify(variant)}, ${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_FONT_SIZE})`
+			variant === 'page'
+				? `window.renderPageCard(${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_TITLE_SIZE})`
+				: `window.renderShareCard(${JSON.stringify(variant)}, ${JSON.stringify(card)}, ${SHARE_HEIGHT}, ${MIN_FONT_SIZE})`
 		)) as number | null;
 		if (fontSize === null) {
-			throw new UnrecoverableError(
-				`Quote ${card.id} does not fit the ${variant} card`
-			);
+			const what = 'id' in card ? `Quote ${card.id}` : `Page ${card.path}`;
+			throw new UnrecoverableError(`${what} does not fit the ${variant} card`);
 		}
 		const png = await tab.screenshot({
 			type: 'png',

@@ -47,7 +47,9 @@ backend root, and the image is built from there too
   (jobs take the `Storage` interface, so tests can pass their own).
 - `src/workers/share-images/`: renders qotm_kit's ShareCard with Chromium
   from `assets/share/` (vendored kit files; see its README) and the
-  `@fontsource` fonts, inlined, so a render makes no network request. Run
+  `@fontsource` fonts, inlined, so a render makes no network request. The
+  `page` variant is the og:image of an author, a topic or the site
+  (`renderPageCard` in `assets/share/render.js`), in the quote card's frame. Run
   `yarn puppeteer browsers install chrome` once for local renders.
 - `src/dataset/`: the `qotm.sqlite` schema (v1), writer and loader
   (BUILD-PLAN §5.6). A schema change is a new `SCHEMA_VERSION`.
