@@ -23,7 +23,7 @@ import {
 	parseReportRef,
 	type ChecklistItem
 } from 'review';
-import { ShareImagesService } from 'share/services';
+import { IndexNowService, ShareImagesService } from 'share/services';
 import {
 	CustomConfigService,
 	LoggerService,
@@ -135,6 +135,7 @@ export class ReviewService {
 		private db: PrismaService,
 		private quotes: QuotesService,
 		private share: ShareImagesService,
+		private indexNow: IndexNowService,
 		private mail: MailService,
 		private config: CustomConfigService,
 		private logger: LoggerService
@@ -280,6 +281,7 @@ export class ReviewService {
 		await this.notify(actor, publicId, rule.outcome, input.note);
 		// Now public, or still: draw its share images before anyone shares it.
 		await this.share.rerender(publicId);
+		void this.indexNow.quote(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -312,6 +314,7 @@ export class ReviewService {
 		await this.notify(actor, publicId, rule.outcome, input.note);
 		// Now public, or still: draw its share images before anyone shares it.
 		await this.share.rerender(publicId);
+		void this.indexNow.quote(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -539,6 +542,7 @@ export class ReviewService {
 			}
 			return quote.publicId;
 		}, ISOLATION);
+		void this.indexNow.quote(result);
 		return this.quotes.findOne(result, actor.id, { staff: true });
 	}
 
@@ -639,6 +643,7 @@ export class ReviewService {
 		}, ISOLATION);
 		// A new wording or credit is a new share-image revision: render it now.
 		await this.share.rerender(publicId);
+		void this.indexNow.quote(publicId);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 

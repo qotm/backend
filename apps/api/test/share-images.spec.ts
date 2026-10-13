@@ -129,6 +129,10 @@ describe('Share images', () => {
 	});
 
 	it('never gives an unfurler the placeholder: the bundled card while nothing is drawn', async () => {
+		// The bucket is shared: another suite's worker may have drawn the site card.
+		await s3.send(
+			new DeleteObjectCommand({ Bucket: app.config.s3.bucket, Key: siteKey })
+		);
 		const row = await quote();
 		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
 		expect(res.status).toBe(200);

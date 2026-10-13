@@ -24,6 +24,8 @@ namespace Config {
 		miscCorsOrigins?: string;
 		port: number;
 		key: string;
+		/** IndexNow's key; empty turns the pings off. The web serves it at /<key>.txt. */
+		indexNowKey: string;
 	}
 
 	export interface Logger {
@@ -150,6 +152,11 @@ namespace Config {
 			SERVER_HOST: str(),
 			FRONTEND_HOST: str(),
 			MISC_CORS_ORIGINS: z.string().default(''),
+			INDEXNOW_KEY: z
+				.string()
+				.regex(/^[a-zA-Z0-9-]{8,128}$/)
+				.or(z.literal(''))
+				.default(''),
 			PORT: num().default(5000),
 			DATABASE_URL: str(),
 			BETTER_AUTH_SECRET: str(),
@@ -213,7 +220,8 @@ namespace Config {
 			frontendHost: env.FRONTEND_HOST || '',
 			miscCorsOrigins: env.MISC_CORS_ORIGINS,
 			port: Number(env.PORT) || 5000,
-			key: env.APP_KEY || ''
+			key: env.APP_KEY || '',
+			indexNowKey: env.INDEXNOW_KEY || ''
 		},
 		logger: {
 			level: env.LOG_LEVEL || 'info'
