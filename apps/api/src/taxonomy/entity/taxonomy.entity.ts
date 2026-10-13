@@ -32,6 +32,8 @@ export const AuthorEntity = z
 		bornYear: z.number().int().nullable(),
 		diedYear: z.number().int().nullable(),
 		description: z.string().nullable().meta({ example: 'computer scientist' }),
+		/** The Wikidata item, for the page's schema.org `sameAs`. */
+		wikidataId: z.string().nullable().meta({ example: 'Q8556' }),
 		/** "1930–2002 · computer scientist"; "1942–" while living; "—" when unknown. */
 		line: z.string().meta({ example: '1930–2002 · computer scientist' }),
 		/** The topics most of their quotes are in, most first (up to 4). */

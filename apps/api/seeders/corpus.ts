@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { readFileSync } from 'fs';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient, type Prisma } from '@qotm/db/client';
@@ -43,6 +43,8 @@ export interface CorpusQuote {
 		born: number | null;
 		died: number | null;
 		description: string | null;
+		/** The Wikidata item ("Q8556"), for the author page's `sameAs`. */
+		wikidataId?: string | null;
 	};
 	source: {
 		title: string;
@@ -136,6 +138,12 @@ async function authorId(a: CorpusQuote['author'], cache: Map<string, string>) {
 				c.bornYear != null &&
 				c.bornYear === a.born
 		);
+	if (match && !match.wikidataId && a.wikidataId) {
+		await db.author.update({
+			where: { id: match.id },
+			data: { wikidataId: a.wikidataId }
+		});
+	}
 	const id =
 		match?.id ??
 		(
@@ -145,7 +153,8 @@ async function authorId(a: CorpusQuote['author'], cache: Map<string, string>) {
 					slug: a.slug,
 					bornYear: a.born,
 					diedYear: a.died,
-					description: a.description?.slice(0, 80) ?? null
+					description: a.description?.slice(0, 80) ?? null,
+					wikidataId: a.wikidataId ?? null
 				}
 			})
 		).id;
@@ -295,7 +304,15 @@ async function main() {
 	const topics = await topicIds(corpus);
 	const authors = new Map<string, string>();
 	const counts = { created: 0, exists: 0, failed: 0 };
-	for (const [i, q] of corpus.quotes.entries()) {
+	// Each quote's publishedAt is when it was imported, so the file's order
+	// (grouped by author and topic) would be the latest feed's. Shuffle it,
+	// the same way on every run.
+	const rank = (q: CorpusQuote) =>
+		createHash('sha256').update(q.key).digest('hex');
+	const quotes = [...corpus.quotes].sort((a, b) =>
+		rank(a).localeCompare(rank(b))
+	);
+	for (const [i, q] of quotes.entries()) {
 		try {
 			counts[await importQuote(q, actor, topics, authors)]++;
 		} catch (error) {

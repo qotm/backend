@@ -38,7 +38,8 @@ describe('Topics and authors', () => {
 				name: 'Edsger W. Dijkstra',
 				bornYear: 1930,
 				diedYear: 2002,
-				description: 'computer scientist'
+				description: 'computer scientist',
+				wikidataId: 'Q8556'
 			}
 		});
 		await app.db.author.create({
@@ -106,6 +107,7 @@ describe('Topics and authors', () => {
 			expect(res.body).toMatchObject({
 				name: 'Edsger W. Dijkstra',
 				line: '1930–2002 · computer scientist',
+				wikidataId: 'Q8556',
 				tabs: { all: 3, curated: 2, review: 2 }
 			});
 			expect(res.body.topics[0]).toEqual({
@@ -149,6 +151,39 @@ describe('Topics and authors', () => {
 			expect(
 				res.body.list.map((q: { status: string }) => q.status).sort()
 			).toEqual(['NEEDS_EVIDENCE', 'UNDER_REVIEW']);
+		});
+	});
+
+	// Last: it adds a disputed quote the counts above would include.
+	describe('GET /v1/sitemap', () => {
+		it('lists what a search engine may index: no unchecked, disputed or withdrawn quote', async () => {
+			const disputed = await quote('DISPUTED', null, ['debugging']);
+			const res = await app.request.get('/v1/sitemap');
+			expect(res.status).toBe(200);
+			expect(res.headers['cache-control']).toBe('public, max-age=600');
+			const quotes = await app.db.quote.findMany({
+				where: {
+					publicId: { in: res.body.quotes.map((q: { id: string }) => q.id) }
+				}
+			});
+			expect(quotes.map((q) => q.status).sort()).toEqual([
+				'CURATED',
+				'DATASET_RELEASE',
+				'VERIFIED'
+			]);
+			expect(res.body.quotes.map((q: { id: string }) => q.id)).not.toContain(
+				disputed.publicId
+			);
+			expect(res.body.quotes[0].updatedAt).toEqual(
+				expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/)
+			);
+			// Authors with an indexable quote; topics with one.
+			expect(res.body.authors.map((a: { slug: string }) => a.slug)).toEqual([
+				'dijkstra'
+			]);
+			expect(
+				res.body.topics.map((t: { slug: string }) => t.slug).sort()
+			).toEqual(['debugging', 'programming', 'simplicity']);
 		});
 	});
 });

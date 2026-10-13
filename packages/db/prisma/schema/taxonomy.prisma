@@ -11,6 +11,8 @@ model Author {
   bornYear    Int?     @map("born_year") @db.SmallInt
   diedYear    Int?     @map("died_year") @db.SmallInt
   description String?  @db.VarChar(80)
+  /// The Wikidata item ("Q8556"): the author page's schema.org `sameAs`.
+  wikidataId  String?  @map("wikidata_id") @db.VarChar(16)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

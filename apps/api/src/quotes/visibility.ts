@@ -44,6 +44,23 @@ export const IN_FEEDS: Prisma.QuoteWhereInput = {
 	publishedAt: { not: null }
 };
 
+/**
+ * Public, but not for search engines yet: still being checked, or disputed.
+ * Their pages are `noindex` and left out of the sitemap; the web server keeps
+ * the same list.
+ */
+export const NOT_INDEXED: readonly S[] = [
+	S.UNDER_REVIEW,
+	S.NEEDS_EVIDENCE,
+	S.DISPUTED
+];
+
+/** Quotes a search engine may index: in the feeds, and not under review or disputed. */
+export const INDEXABLE: Prisma.QuoteWhereInput = {
+	status: { notIn: [...NOT_PUBLIC, ...NOT_INDEXED] },
+	publishedAt: { not: null }
+};
+
 /** Curated, and shipped in a release: the "curated" tab and count. */
 export const CURATED_STATUSES: readonly S[] = [S.CURATED, S.DATASET_RELEASE];
 

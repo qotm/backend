@@ -90,6 +90,7 @@ export class TaxonomyService {
 			bornYear: author.bornYear,
 			diedYear: author.diedYear,
 			description: author.description,
+			wikidataId: author.wikidataId,
 			line: lifespanLine(author),
 			topics: topicCounts.flatMap((t) => {
 				const topic = byId.get(t.topicId);
