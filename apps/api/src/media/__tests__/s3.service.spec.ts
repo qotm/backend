@@ -3,9 +3,14 @@ import { vi } from 'vitest';
 import {
 	S3Client,
 	PutObjectCommand,
-	DeleteObjectCommand
+	DeleteObjectCommand,
+	HeadObjectCommand,
+	ListObjectsV2Command
 } from '@aws-sdk/client-s3';
-import { BadRequestException } from '@nestjs/common';
+import {
+	BadRequestException,
+	ServiceUnavailableException
+} from '@nestjs/common';
 import { Enum } from 'common/utils';
 import {
 	CustomConfigService,
@@ -153,6 +158,57 @@ describe('S3Service', () => {
 
 			await expect(service.deleteFile('avatars/test-uuid.jpg')).rejects.toThrow(
 				BadRequestException
+			);
+		});
+	});
+	describe('exists', () => {
+		const status = (code: number, name = 'Unknown') =>
+			Object.assign(new Error(name), {
+				name,
+				$metadata: { httpStatusCode: code }
+			});
+		const key = 'share/q_8f2k1c/quote-abc.png';
+
+		it('is true when the HEAD succeeds, false on a 404', async () => {
+			expect(await service.exists(key)).toBe(true);
+			sendSpy.mockRejectedValueOnce(status(404, 'NotFound'));
+			expect(await service.exists(key)).toBe(false);
+		});
+
+		it('settles a 403 by listing the exact key (RustFS answers a missing key with 403)', async () => {
+			sendSpy
+				.mockRejectedValueOnce(status(403))
+				.mockResolvedValueOnce({ Contents: [] });
+			expect(await service.exists(key)).toBe(false);
+			expect(sendSpy.mock.calls[0][0]).toBeInstanceOf(HeadObjectCommand);
+			const list = sendSpy.mock.calls[1][0] as ListObjectsV2Command;
+			expect(list).toBeInstanceOf(ListObjectsV2Command);
+			expect(list.input).toMatchObject({ Prefix: key, MaxKeys: 1 });
+
+			sendSpy
+				.mockRejectedValueOnce(status(403))
+				.mockResolvedValueOnce({ Contents: [{ Key: key }] });
+			expect(await service.exists(key)).toBe(true);
+
+			sendSpy
+				.mockRejectedValueOnce(status(403))
+				.mockResolvedValueOnce({ Contents: [{ Key: `${key}.old` }] });
+			expect(await service.exists(key)).toBe(false);
+		});
+
+		it('is a 503 when the listing is refused too: our credentials, not the caller', async () => {
+			sendSpy
+				.mockRejectedValueOnce(status(403))
+				.mockRejectedValueOnce(status(403, 'AccessDenied'));
+			await expect(service.exists(key)).rejects.toThrow(
+				ServiceUnavailableException
+			);
+		});
+
+		it('is a 503 when storage is down', async () => {
+			sendSpy.mockRejectedValueOnce(status(503, 'ServiceUnavailable'));
+			await expect(service.exists(key)).rejects.toThrow(
+				ServiceUnavailableException
 			);
 		});
 	});

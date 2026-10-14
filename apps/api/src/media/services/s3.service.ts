@@ -8,7 +8,8 @@ import {
 	PutObjectCommand,
 	DeleteObjectCommand,
 	GetObjectCommand,
-	HeadObjectCommand
+	HeadObjectCommand,
+	ListObjectsV2Command
 } from '@aws-sdk/client-s3';
 import path from 'path';
 import {
@@ -86,8 +87,9 @@ export class S3Service {
 	/**
 	 * Storage failures are not the caller's fault. A timeout / DNS / refused-connection
 	 * error means the bucket host is unreachable — that is a 503 the client can retry,
-	 * not a 400 telling the user their file was bad. Anything else (missing key, bad
-	 * ACL) stays a 400 as before.
+	 * not a 400 telling the user their file was bad. Storage refusing our own
+	 * credentials (401/403) is ours to fix, so it is a 503 too, logged as such.
+	 * Anything else (a bad key or ACL in the request) stays a 400.
 	 */
 	private toException(error: any, action: 'store' | 'read') {
 		const transportCodes = [
@@ -104,11 +106,14 @@ export class S3Service {
 			transportCodes.includes(code) ||
 			transportCodes.includes(error?.$metadata?.httpStatusCode) ||
 			error?.$metadata?.httpStatusCode >= 500;
+		const refused = [401, 403].includes(error?.$metadata?.httpStatusCode);
 
-		if (unreachable) {
+		if (unreachable || refused) {
 			this.logger.error(
 				{ err: error, action, endpoint: this.config.s3.endpoint },
-				'File storage is unreachable.'
+				refused
+					? 'File storage refused our credentials: check the access key and its policy.'
+					: 'File storage is unreachable.'
 			);
 			return new ServiceUnavailableException(
 				`We could not ${action} the file right now — storage is unavailable. Please try again shortly.`
@@ -167,7 +172,12 @@ export class S3Service {
 		}
 	}
 
-	/** Whether `key` exists; false for a missing key, a storage error throws. */
+	/**
+	 * Whether `key` exists; false for a missing key, a storage error throws.
+	 * Some S3-compatible servers (RustFS) answer a HEAD for a missing key with
+	 * 403 even when the key may list the bucket, so a 403 is settled by
+	 * listing that exact key.
+	 */
 	async exists(key: string) {
 		try {
 			await this.client.send(
@@ -175,12 +185,24 @@ export class S3Service {
 			);
 			return true;
 		} catch (error: any) {
-			if (
-				error?.name === 'NotFound' ||
-				error?.$metadata?.httpStatusCode === 404
-			) {
-				return false;
-			}
+			const status = error?.$metadata?.httpStatusCode;
+			if (error?.name === 'NotFound' || status === 404) return false;
+			if (status === 403) return this.listed(key);
+			throw this.toException(error, 'read');
+		}
+	}
+
+	private async listed(key: string) {
+		try {
+			const { Contents } = await this.client.send(
+				new ListObjectsV2Command({
+					Bucket: this.config.s3.bucket,
+					Prefix: key,
+					MaxKeys: 1
+				})
+			);
+			return Contents?.[0]?.Key === key;
+		} catch (error: any) {
 			throw this.toException(error, 'read');
 		}
 	}
