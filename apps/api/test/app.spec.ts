@@ -82,5 +82,18 @@ describe('App', () => {
 			expect(response.headers['vary']).toContain('Origin');
 			expect(response.headers['access-control-allow-credentials']).toBe('true');
 		});
+
+		it('lets the browser keep a preflight for two hours', async () => {
+			const response = await app.request
+				.options('/v1/topics')
+				.set('Origin', process.env.FRONTEND_HOST!)
+				.set('Access-Control-Request-Method', 'GET')
+				.set('Access-Control-Request-Headers', 'traceparent');
+			expect(response.status).toBe(204);
+			expect(response.headers['access-control-allow-headers']).toBe(
+				'traceparent'
+			);
+			expect(response.headers['access-control-max-age']).toBe('7200');
+		});
 	});
 });

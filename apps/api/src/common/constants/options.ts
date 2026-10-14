@@ -49,5 +49,10 @@ export const CORS_OPTIONS = {
 	credentials: true,
 	methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
 	preflightContinue: false,
-	optionsSuccessStatus: 204
+	optionsSuccessStatus: 204,
+	// The site's browser monitoring adds a traceparent header to every API
+	// call, which makes each one a preflighted request. Without a max age a
+	// browser keeps the preflight for 5s, so nearly every call paid an extra
+	// round trip. Two hours is Chrome's ceiling.
+	maxAge: 7200
 };
