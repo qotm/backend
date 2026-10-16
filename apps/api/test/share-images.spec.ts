@@ -60,7 +60,7 @@ describe('Share images', () => {
 			new PutObjectCommand({
 				Bucket: app.config.s3.bucket,
 				Key: key,
-				Body: Buffer.from('png'),
+				Body: Buffer.from(`png:${key}`),
 				ContentType: 'image/png'
 			})
 		);
@@ -148,10 +148,10 @@ describe('Share images', () => {
 		const row = await quote();
 		await rendered(siteKey);
 		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
-		expect(res.status).toBe(302);
+		expect(res.status).toBe(200);
 		expect(res.headers['x-og-image']).toBe('fallback');
 		expect(res.headers['cache-control']).toBe('no-store');
-		expect(res.headers.location).toMatch(new RegExp(`/${siteKey}$`));
+		expect(res.body.toString()).toBe(`png:${siteKey}`);
 	});
 
 	it('waits for a render that lands while the unfurler waits', async () => {
@@ -160,9 +160,9 @@ describe('Share images', () => {
 		await new Promise((r) => setTimeout(r, 150));
 		await rendered(keyOf(row));
 		const res = await pending;
-		expect(res.status).toBe(302);
+		expect(res.status).toBe(200);
 		expect(res.headers['x-og-image']).toBe('render');
-		expect(res.headers.location).toMatch(new RegExp(`/${keyOf(row)}$`));
+		expect(res.body.toString()).toBe(`png:${keyOf(row)}`);
 	});
 
 	it('renders each variant separately', async () => {
@@ -179,14 +179,42 @@ describe('Share images', () => {
 		).toBe(400);
 	});
 
-	it('redirects to the rendered image, keyed by revision', async () => {
+	it("serves the Share dialog the rendered image's bytes", async () => {
+		const row = await quote();
+		await rendered(keyOf(row, 'terminal'));
+		const res = await get(
+			`/v1/quotes/${row.publicId}/share-image?variant=terminal`
+		);
+		expect(res.status).toBe(200);
+		expect(res.headers.location).toBeUndefined();
+		expect(res.body.toString()).toBe(`png:${keyOf(row, 'terminal')}`);
+		expect(res.headers['cache-control']).toBe('public, max-age=300');
+	});
+
+	it("gives a quote page's og:image the card the link asked for", async () => {
+		const row = await quote();
+		await rendered(keyOf(row));
+		await rendered(keyOf(row, 'terminal'));
+		const terminal = await get(
+			`/v1/quotes/${row.publicId}/og.png?variant=terminal`
+		);
+		expect(terminal.headers['x-og-image']).toBe('render');
+		expect(terminal.body.toString()).toBe(`png:${keyOf(row, 'terminal')}`);
+		const plain = await get(`/v1/quotes/${row.publicId}/og.png`);
+		expect(plain.body.toString()).toBe(`png:${keyOf(row)}`);
+		expect(
+			(await get(`/v1/quotes/${row.publicId}/og.png?variant=poster`)).status
+		).toBe(400);
+	});
+
+	it('sends the rendered image itself, keyed by revision', async () => {
 		const row = await quote();
 		await rendered(keyOf(row));
 		const res = await get(`/v1/quotes/${row.publicId}/og.png`);
-		expect(res.status).toBe(302);
-		expect(res.headers.location).toBe(
-			`${app.config.s3.endpoint}/${app.config.s3.bucket}/${keyOf(row)}`
-		);
+		expect(res.status).toBe(200);
+		expect(res.headers['content-type']).toBe('image/png');
+		expect(res.headers.location).toBeUndefined();
+		expect(res.body.toString()).toBe(`png:${keyOf(row)}`);
 		expect(res.headers['cache-control']).toBe('public, max-age=300');
 		expect(res.headers.etag).toBe(
 			`"${shareRevision(shareCardOf(row), 'quote')}"`
@@ -312,8 +340,9 @@ describe('Share images', () => {
 
 		await rendered(siteKey);
 		const site = await get('/v1/og.png');
-		expect(site.status).toBe(302);
+		expect(site.status).toBe(200);
 		expect(site.headers['x-og-image']).toBe('render');
+		expect(site.body.toString()).toBe(`png:${siteKey}`);
 	});
 
 	it('backfills every card not drawn yet, behind waiting renders', async () => {

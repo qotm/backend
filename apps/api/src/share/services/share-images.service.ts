@@ -49,16 +49,16 @@ const OG_POLL_MS = 400;
 const FEATURE_MAX = 140;
 
 export type ShareImage =
-	| { ready: true; url: string; revision: string }
+	| { ready: true; key: string; revision: string }
 	| { ready: false; revision: string };
 
-/** An og:image: the render, or (after OG_WAIT_MS) the site card or the bundled one. */
+/** An og:image: the render, or (after OG_WAIT_MS) the site card or the bundled one (`key: null`). */
 export type OgImage =
-	| { url: string; fallback: false; revision: string }
-	| { url: string | null; fallback: true };
+	| { key: string; fallback: false; revision: string }
+	| { key: string | null; fallback: true };
 
 export type OgTarget =
-	| { kind: 'quote'; id: string }
+	| { kind: 'quote'; id: string; variant?: ShareVariant }
 	| { kind: 'author' | 'topic'; slug: string }
 	| { kind: 'site' };
 
@@ -126,26 +126,31 @@ export class ShareImagesService implements OnApplicationBootstrap {
 	 * An og:image. Unfurlers keep the first image they get for days, so this
 	 * never answers with the placeholder: it waits up to OG_WAIT_MS for the
 	 * render, then falls back to the site card, then to the bundled one
-	 * (`url: null`).
+	 * (`key: null`).
 	 */
 	async og(target: OgTarget, waitMs = OG_WAIT_MS): Promise<OgImage> {
 		const job = await this.target(target);
 		const image = await this.ensure(job, NOW);
 		if (image.ready)
-			return { url: image.url, fallback: false, revision: image.revision };
+			return { key: image.key, fallback: false, revision: image.revision };
 		if (await this.waitFor(job.key, waitMs)) {
-			return {
-				url: this.s3.getUrl(job.key),
-				fallback: false,
-				revision: image.revision
-			};
+			return { key: job.key, fallback: false, revision: image.revision };
 		}
 		const site = await this.target({ kind: 'site' });
 		if (site.key !== job.key && (await this.rendered(site.key))) {
-			return { url: this.s3.getUrl(site.key), fallback: true };
+			return { key: site.key, fallback: true };
 		}
 		if (site.key !== job.key) await this.jobs.render(site, NOW);
-		return { url: null, fallback: true };
+		return { key: null, fallback: true };
+	}
+
+	/**
+	 * A rendered image's bytes, read with the API's own credentials: the
+	 * routes send them rather than a redirect, so they work whether or not
+	 * the bucket is publicly readable.
+	 */
+	png(key: string) {
+		return this.s3.getFileBuffer(key);
 	}
 
 	/**
@@ -220,7 +225,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 			-'.png'.length
 		);
 		if (await this.rendered(job.key)) {
-			return { ready: true, url: this.s3.getUrl(job.key), revision };
+			return { ready: true, key: job.key, revision };
 		}
 		await this.jobs.render(job, urgency);
 		return { ready: false, revision };
@@ -237,7 +242,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 	private target(target: OgTarget): Promise<RenderShareImage> {
 		switch (target.kind) {
 			case 'quote':
-				return this.locate(target.id, 'quote');
+				return this.locate(target.id, target.variant ?? 'quote');
 			case 'site':
 				return Promise.resolve(pageJob(SITE_CARD));
 			default:

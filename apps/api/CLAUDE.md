@@ -101,7 +101,9 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
 - **Scheduler**: `@Cron(...)` or `@Interval('name', ms)` on any provider.
 - **Outbound HTTP**: inject `HttpService` from `@nestjs/axios` (5s timeout).
 - **Share images and og:images** (`src/share/`): rendered by the worker,
-  served from S3 by revision. An og:image route waits up to 8s for its render
+  stored in S3 by revision and sent by the API itself (read with its own
+  credentials, never a redirect to the bucket); a quote's og:image takes
+  `?variant=terminal`. An og:image route waits up to 8s for its render
   and falls back to the site card, never the placeholder (unfurlers cache the
   first image). The API checks every card at boot and daily (`og-backfill`),
   behind any render someone waits for.
