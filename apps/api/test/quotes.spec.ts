@@ -1,4 +1,6 @@
+import { CacheService } from 'common/services';
 import { AppFactory } from '@test/factory/app';
+import { TODAY_MAX_LENGTH } from 'quotes/services';
 import { TEST_ADMIN, TEST_USER } from '@test/factory/constants';
 import type { QuoteStatus, QuoteType } from '@qotm/db/enums';
 
@@ -265,6 +267,56 @@ describe('Quotes (public)', () => {
 			expect(
 				(await app.request.get('/v1/quotes').query({ cursor: 'nope' })).status
 			).toBe(400);
+		});
+	});
+
+	describe('GET /v1/quotes/today', () => {
+		const forget = () =>
+			app.instance
+				.get(CacheService)
+				.delete(`quotes:today:${new Date().toISOString().slice(0, 10)}`);
+		const today = () => app.request.get('/v1/quotes/today');
+
+		it('picks a curated quote from the software topics, the same on every request', async () => {
+			await forget();
+			// q_feed02 is curated too, but its topic (simplicity) is not one of them.
+			const first = await today();
+			expect(first.status).toBe(200);
+			expect(first.body).toMatchObject({
+				id: 'q_feed04',
+				status: 'DATASET_RELEASE'
+			});
+			expect((await today()).body.id).toBe('q_feed04');
+		});
+
+		it('leaves out a quote too long for the terminal', async () => {
+			const long = await quote('q_long01', 'CURATED', {
+				publishedAt: day(3),
+				topics: ['debugging']
+			});
+			await app.db.quote.update({
+				where: { id: long.id },
+				data: { text: 'x'.repeat(TODAY_MAX_LENGTH + 1) }
+			});
+			for (let i = 0; i < 3; i++) {
+				await forget();
+				expect((await today()).body.id).toBe('q_feed04');
+			}
+			await app.db.quote.delete({ where: { id: long.id } });
+		});
+
+		it('picks again once its quote is no longer curated, from any topic if it must', async () => {
+			expect((await today()).body.id).toBe('q_feed04');
+			await app.db.quote.update({
+				where: { publicId: 'q_feed04' },
+				data: { status: 'VERIFIED' }
+			});
+			expect((await today()).body.id).toBe('q_feed02');
+			await app.db.quote.update({
+				where: { publicId: 'q_feed04' },
+				data: { status: 'DATASET_RELEASE' }
+			});
+			await forget();
 		});
 	});
 

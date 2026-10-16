@@ -25,6 +25,27 @@ import type {
 const FEED_TTL_SECONDS = 60;
 const RELATED_LIMIT = 4;
 
+/**
+ * Today's quote (the landing page's terminal): the software topics only, not
+ * the wider science and learning ones the corpus also holds, and short
+ * enough to sit in the terminal.
+ */
+export const TODAY_TOPICS = [
+	'programming',
+	'software-design',
+	'software-engineering',
+	'debugging',
+	'unix',
+	'open-source',
+	'databases',
+	'distributed-systems',
+	'security',
+	'web-development',
+	'history-of-computing'
+] as const;
+export const TODAY_MAX_LENGTH = 160;
+const TODAY_TTL_SECONDS = 3600;
+
 const DETAIL = {
 	...CARD,
 	source: { select: { title: true, year: true, kind: true, url: true } },
@@ -70,6 +91,53 @@ export class QuotesService {
 			list: await this.withViewer(ordered.map(toCard), ordered, viewerId),
 			nextCursor: page.nextCursor
 		};
+	}
+
+	/**
+	 * Today's quote: one curated quote from TODAY_TOPICS, the same for everyone
+	 * on a given UTC day and a different one the next. Any short curated quote
+	 * if none of those topics has one; null if nothing is curated at all.
+	 */
+	async today(): Promise<QuoteCardEntity | null> {
+		const seed = todaySeed();
+		const key = `quotes:today:${seed}`;
+		const cached = await this.cache.fetch<string>(key);
+		// A cached pick withdrawn or decurated since is picked again.
+		const row = (cached && (await this.todayRow(cached))) || null;
+		if (row) return toCard(row);
+		const id =
+			(await this.todayId(seed, [...TODAY_TOPICS])) ??
+			(await this.todayId(seed, null));
+		const picked = id ? await this.todayRow(id) : null;
+		if (!picked) return null;
+		await this.cache.store(key, picked.publicId, TODAY_TTL_SECONDS);
+		return toCard(picked);
+	}
+
+	private todayRow(publicId: string) {
+		return this.db.quote.findFirst({
+			where: {
+				publicId,
+				...IN_FEEDS,
+				status: { in: [...CURATED_STATUSES] }
+			},
+			include: CARD
+		});
+	}
+
+	private async todayId(seed: string, topics: string[] | null) {
+		const rows = await this.db.$queryRaw<{ public_id: string }[]>`
+			SELECT q.public_id
+			FROM quotes q
+			WHERE q.published_at IS NOT NULL
+				AND q.status::text = ANY(${[...CURATED_STATUSES]}::text[])
+				AND char_length(q.text) <= ${TODAY_MAX_LENGTH}
+				AND (${topics}::text[] IS NULL OR EXISTS (
+					SELECT 1 FROM quote_topics qt JOIN topics t ON t.id = qt.topic_id
+					WHERE qt.quote_id = q.id AND t.slug = ANY(${topics}::text[])))
+			ORDER BY md5(q.public_id || ${seed})
+			LIMIT 1`;
+		return rows[0]?.public_id ?? null;
 	}
 
 	/**
@@ -309,6 +377,11 @@ function filtersOf(query: QuoteFeedQuery): Prisma.QuoteWhereInput {
 			query.type === 'canonical' ? QuoteType.CANONICAL : QuoteType.ORIGINAL;
 	}
 	return where;
+}
+
+/** Today's quote changes with the UTC day, as Discover's order does. */
+function todaySeed() {
+	return new Date().toISOString().slice(0, 10);
 }
 
 /** Discover's daily seed (UTC); other feeds do not depend on the day. */

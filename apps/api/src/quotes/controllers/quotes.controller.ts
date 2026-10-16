@@ -1,4 +1,10 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import {
+	Controller,
+	Get,
+	NotFoundException,
+	Param,
+	Query
+} from '@nestjs/common';
 import { ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
 import {
 	OptionalAuth,
@@ -8,7 +14,12 @@ import {
 import { IdParam, Op, Returns } from 'common/decorators';
 import { QuotesService } from '../services';
 import { QuoteFeedQuery } from '../dto';
-import { QuoteEntity, QuoteFeedEntity, RelatedQuotesEntity } from '../entity';
+import {
+	QuoteCardEntity,
+	QuoteEntity,
+	QuoteFeedEntity,
+	RelatedQuotesEntity
+} from '../entity';
 
 /**
  * The public quote reads. No session is needed; with one, each quote carries
@@ -29,6 +40,20 @@ export class QuotesController {
 		@Session() session?: UserSession | null
 	) {
 		return this.service.feed(query, session?.user.id);
+	}
+
+	@Get('today')
+	@Op(
+		'quotes/today',
+		'/v1/quotes/today',
+		"Today's quote: a short curated programming quote, the same for everyone on a UTC day"
+	)
+	@Returns(QuoteCardEntity)
+	@ApiNotFoundResponse({ description: 'Nothing is curated yet' })
+	async today() {
+		const quote = await this.service.today();
+		if (!quote) throw new NotFoundException('No curated quote yet');
+		return quote;
 	}
 
 	@Get(':id')
