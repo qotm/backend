@@ -37,7 +37,7 @@ export class ReleaseJobs {
 			deduplication: { id: BUILD_DEDUPLICATION_ID },
 			attempts: 3,
 			backoff: { type: 'exponential', delay: 30_000 },
-			removeOnComplete: 100,
+			removeOnComplete: true,
 			removeOnFail: false
 		});
 		// A deduplicated add hands back the job already in flight.
@@ -62,7 +62,7 @@ export class ReleaseJobs {
 			deduplication: { id: `release-publish-${data.releaseId}` },
 			attempts: 5,
 			backoff: { type: 'exponential', delay: 10_000 },
-			removeOnComplete: 100,
+			removeOnComplete: true,
 			removeOnFail: false
 		});
 		return job.id === jobId;

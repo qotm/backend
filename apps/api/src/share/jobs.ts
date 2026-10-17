@@ -76,6 +76,6 @@ const options = (data: RenderShareImage, urgency: Urgency) => ({
 	deduplication: { id: data.key },
 	attempts: 3,
 	backoff: { type: 'exponential' as const, delay: 15_000 },
-	removeOnComplete: 1000,
+	removeOnComplete: true,
 	removeOnFail: 1000
 });
