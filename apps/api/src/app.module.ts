@@ -58,6 +58,7 @@ import {
 } from 'lib/sign-in';
 import { EMAIL_LIMIT, emailLimitKey, signInGuard } from 'lib/sign-in-guard';
 import { OriginBuilder } from 'common/misc';
+import { FAILED_JOBS_KEPT } from 'common/constants/jobs';
 
 @Module({
 	imports: [
@@ -241,7 +242,8 @@ import { OriginBuilder } from 'common/misc';
 					password: config.redis.password
 				},
 				defaultJobOptions: {
-					removeOnComplete: true
+					removeOnComplete: true,
+					removeOnFail: FAILED_JOBS_KEPT
 				},
 				// Job spans for producers and workers; a no-op unless the
 				// OpenTelemetry SDK is running (see src/instrumentation.ts).

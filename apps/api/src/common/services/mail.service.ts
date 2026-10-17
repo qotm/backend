@@ -11,6 +11,7 @@ import {
 	MagicLinkData,
 	ReviewFinishedData
 } from 'common/types';
+import { FAILED_JOBS_KEPT } from 'common/constants/jobs';
 
 @Injectable()
 export class MailService {
@@ -57,7 +58,7 @@ export class MailService {
 		return this.mail.add(MailJob.ReviewFinished, data, {
 			attempts: 3,
 			backoff: { type: 'exponential', delay: 30_000 },
-			removeOnFail: false
+			removeOnFail: FAILED_JOBS_KEPT
 		});
 	};
 }

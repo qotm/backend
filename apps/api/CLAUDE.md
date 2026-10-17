@@ -90,7 +90,9 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
 
 - **Queues**: `QueueModule.register('<name>')` in a module's imports,
   `@InjectQueue('<name>')` to produce, a `WorkerHost` processor to consume.
-  Bull Board at `/dashboard`. See `add-job`.
+  Bull Board at `/dashboard`. See `add-job`. Finished jobs are removed
+  (except exports, whose download reads the result); failed ones are kept 30
+  days (`FAILED_JOBS_KEPT`, the default; a producer's own options repeat it).
 - **Cache**: `CacheService` from `common/services` (Redis).
 - **Mail**: `MailService` enqueues; `common/processors/mail` renders and
   sends. See `add-email`.

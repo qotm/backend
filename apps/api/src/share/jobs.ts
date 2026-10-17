@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import type { PageCard, ShareCard, ShareVariant } from './cards';
+import { FAILED_JOBS_KEPT } from 'common/constants/jobs';
 
 /**
  * The `share-images` queue, consumed by the worker
@@ -39,7 +40,7 @@ export class ShareImageJobs {
 	/**
 	 * Queues a render (`AHEAD` ones after every `NOW` one). Requests for the same image while one is queued or
 	 * running are dropped (deduplicated by key); a failed render is kept in
-	 * Bull Board and the next request queues it again.
+	 * Bull Board (30 days, the last 1000) and the next request queues it again.
 	 */
 	async render(data: RenderShareImage, urgency: Urgency = NOW) {
 		const opts = options(data, urgency);
@@ -77,5 +78,5 @@ const options = (data: RenderShareImage, urgency: Urgency) => ({
 	attempts: 3,
 	backoff: { type: 'exponential' as const, delay: 15_000 },
 	removeOnComplete: true,
-	removeOnFail: 1000
+	removeOnFail: { ...FAILED_JOBS_KEPT, count: 1000 }
 });

@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import type { AdminQuoteFilters } from 'admin/quotes/dto';
+import { FAILED_JOBS_KEPT } from 'common/constants/jobs';
 
 /**
  * The `exports` queue, consumed by the worker
@@ -32,7 +33,7 @@ export class ExportJobs {
 			attempts: 3,
 			backoff: { type: 'exponential', delay: 10_000 },
 			removeOnComplete: { age: EXPORT_TTL_SECONDS },
-			removeOnFail: false
+			removeOnFail: FAILED_JOBS_KEPT
 		});
 		return job.id!;
 	}

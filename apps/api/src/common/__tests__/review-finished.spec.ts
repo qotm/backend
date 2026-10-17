@@ -85,7 +85,7 @@ describe('the review-finished email', () => {
 		}
 	});
 
-	it('is queued with attempts and backoff, and failures kept', async () => {
+	it('is queued with attempts and backoff, and failures kept 30 days', async () => {
 		const { unit, unitRef } = await TestBed.solitary(MailService).compile();
 		const queue: { add: Mock<Queue['add']> } = unitRef.get(
 			getQueueToken('mail')
@@ -94,7 +94,7 @@ describe('the review-finished email', () => {
 		expect(queue.add).toHaveBeenCalledWith(MailJob.ReviewFinished, data, {
 			attempts: 3,
 			backoff: { type: 'exponential', delay: 30_000 },
-			removeOnFail: false
+			removeOnFail: { age: 30 * 24 * 60 * 60 }
 		});
 	});
 });

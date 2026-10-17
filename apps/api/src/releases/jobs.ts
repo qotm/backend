@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import type { AuditEntry } from 'audit';
+import { FAILED_JOBS_KEPT } from 'common/constants/jobs';
 
 /**
  * The `releases` queue, consumed by the worker
@@ -28,7 +29,8 @@ export class ReleaseJobs {
 	/**
 	 * Queues a preview build, unless one is already waiting or running
 	 * (BullMQ deduplication: the new job is dropped and false is returned).
-	 * The job is retried with backoff; failed ones stay in Bull Board.
+	 * The job is retried with backoff; failed ones stay in Bull Board for
+	 * 30 days.
 	 */
 	async preview(data: ReleaseJobData) {
 		const jobId = `preview-${data.releaseId}-${randomUUID()}`;
@@ -38,7 +40,7 @@ export class ReleaseJobs {
 			attempts: 3,
 			backoff: { type: 'exponential', delay: 30_000 },
 			removeOnComplete: true,
-			removeOnFail: false
+			removeOnFail: FAILED_JOBS_KEPT
 		});
 		// A deduplicated add hands back the job already in flight.
 		return job.id === jobId;
@@ -63,7 +65,7 @@ export class ReleaseJobs {
 			attempts: 5,
 			backoff: { type: 'exponential', delay: 10_000 },
 			removeOnComplete: true,
-			removeOnFail: false
+			removeOnFail: FAILED_JOBS_KEPT
 		});
 		return job.id === jobId;
 	}
