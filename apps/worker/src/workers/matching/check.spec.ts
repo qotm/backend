@@ -17,6 +17,7 @@ function fakeDb(
 					quote
 						? {
 								id: 'q1',
+								publicId: 'q_5k0q2j',
 								text: 'Make it work, make it right, make it fast.',
 								...quote
 							}
@@ -45,7 +46,8 @@ describe('checkOriginality', () => {
 			status: 'ORIGINALITY_CHECK'
 		});
 		await expect(checkOriginality(db, 'q1')).resolves.toEqual({
-			outcome: 'published'
+			outcome: 'published',
+			publicId: 'q_5k0q2j'
 		});
 		expect(tx.quote.updateMany).toHaveBeenCalledWith({
 			where: { id: 'q1', status: 'ORIGINALITY_CHECK' },

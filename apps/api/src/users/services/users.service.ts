@@ -5,11 +5,13 @@ import {
 } from '@nestjs/common';
 import { UserSession } from '@thallesp/nestjs-better-auth';
 import { Prisma } from '@qotm/db/client';
+import { QuoteType } from '@qotm/db/enums';
 import { PrismaService } from 'common/services';
 import { ensureExists } from 'common/utils';
 import { recordAudit } from 'audit';
 import { DEFAULT_ROLE, hasRole, roles, type RoleInput } from 'lib/access';
 import { CURATED_STATUSES } from 'quotes/visibility';
+import { ShareImagesService } from 'share/services';
 import { PaginatedUserEntity, UserEntity } from '../entity';
 import { UserFilters, type SetRole } from '../dto';
 import { PUBLIC_CONTRIBUTION } from './profiles.service';
@@ -30,7 +32,10 @@ const visibleRolesFor = (role: RoleInput): string[] =>
 
 @Injectable()
 export class UsersService {
-	constructor(private db: PrismaService) {}
+	constructor(
+		private db: PrismaService,
+		private share: ShareImagesService
+	) {}
 
 	async paginate(
 		user: UserSession['user'],
@@ -176,7 +181,13 @@ export class UsersService {
 	}
 
 	async remove(id: string) {
+		const originals = await this.db.quote.findMany({
+			where: { contributorId: id, type: QuoteType.ORIGINAL },
+			select: { id: true }
+		});
 		await this.db.user.delete({ where: { id } });
+		// Their originals stay, now credited to "a former member".
+		await this.share.rerenderMany({ id: { in: originals.map((q) => q.id) } });
 		return ok();
 	}
 }

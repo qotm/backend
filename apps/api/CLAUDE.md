@@ -105,8 +105,13 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
   credentials, never a redirect to the bucket); a quote's og:image takes
   `?variant=terminal`. An og:image route waits up to 8s for its render
   and falls back to the site card, never the placeholder (unfurlers cache the
-  first image). The API checks every card at boot and daily (`og-backfill`),
-  behind any render someone waits for.
+  first image). Images are queued ahead as cards change: a review decision or
+  correction (`rerender`), an original the worker's check publishes
+  (`OriginalityEvents`, on the `matching` queue's completed event), an author
+  or topic edit, a new handle, a deleted account (`rerenderMany`,
+  `rerenderPage`). Both cards of every public quote, and every page card, are
+  checked at boot and hourly (`og-backfill`) for whatever those missed, behind
+  any render someone waits for.
 - **Observability**: traces and logs go out over OTLP once `OPENOBSERVE_*`
   or `OTEL_EXPORTER_OTLP_ENDPOINT` is set; `/health` checks the database.
 

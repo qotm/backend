@@ -1,4 +1,5 @@
-import { TestBed, type Mocked } from '@suites/unit';
+import { TestBed, type Mocked, type UnitReference } from '@suites/unit';
+import { ShareImagesService } from 'share/services';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Gen } from '@test/factory/gen';
 import { Entity } from '@test/factory/entity';
@@ -11,10 +12,12 @@ import { OKEntity } from 'common/entity';
 describe('UsersService', () => {
 	let service: UsersService;
 	let db: Mocked<PrismaService>;
+	let unitRef: UnitReference;
 
 	beforeAll(async () => {
-		const { unit, unitRef } = await TestBed.solitary(UsersService).compile();
-		service = unit;
+		const compiled = await TestBed.solitary(UsersService).compile();
+		service = compiled.unit;
+		unitRef = compiled.unitRef;
 		db = unitRef.get(PrismaService);
 	});
 
@@ -381,6 +384,10 @@ describe('UsersService', () => {
 	});
 
 	describe('remove', () => {
+		beforeEach(() => {
+			db.quote.findMany.mockResolvedValue([]);
+		});
+
 		it('should delete the user by id', async () => {
 			const userId = Gen.uuid();
 			db.user.delete.mockResolvedValue(Entity.user.build({ id: userId }));
@@ -390,6 +397,17 @@ describe('UsersService', () => {
 			expect(db.user.delete).toHaveBeenCalledWith({
 				where: { id: userId }
 			});
+		});
+
+		it('queues new cards for the originals it leaves to "a former member"', async () => {
+			const userId = Gen.uuid();
+			db.quote.findMany.mockResolvedValue([{ id: 'q1' }] as never);
+			db.user.delete.mockResolvedValue(Entity.user.build({ id: userId }));
+			const share = unitRef.get(ShareImagesService);
+
+			await service.remove(userId);
+
+			expect(share.rerenderMany).toHaveBeenCalledWith({ id: { in: ['q1'] } });
 		});
 
 		it('should return an OKEntity', async () => {

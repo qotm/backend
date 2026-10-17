@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ShareModule } from 'share/share.module';
 import {
 	AdminAuthorsController,
 	AdminSourcesController,
@@ -8,6 +9,7 @@ import { AdminTaxonomyService } from './services';
 
 /** Admin CRUD for authors, sources and topics (QOT-43). */
 @Module({
+	imports: [ShareModule],
 	controllers: [
 		AdminAuthorsController,
 		AdminSourcesController,

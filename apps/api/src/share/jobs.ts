@@ -42,19 +42,9 @@ export class ShareImageJobs {
 	 * Bull Board and the next request queues it again.
 	 */
 	async render(data: RenderShareImage, urgency: Urgency = NOW) {
-		const jobId = `render-${randomUUID()}`;
-		const job = await this.queue.add(RENDER_SHARE_IMAGE, data, {
-			jobId,
-			// BullMQ takes unprioritised jobs first, so a waiting unfurl never
-			// queues behind a backfill of thousands.
-			...(urgency === AHEAD ? { priority: 10 } : {}),
-			deduplication: { id: data.key },
-			attempts: 3,
-			backoff: { type: 'exponential', delay: 15_000 },
-			removeOnComplete: 1000,
-			removeOnFail: 1000
-		});
-		if (job.id === jobId) return true;
+		const opts = options(data, urgency);
+		const job = await this.queue.add(RENDER_SHARE_IMAGE, data, opts);
+		if (job.id === opts.jobId) return true;
 		// Already queued, perhaps by the backfill: someone waits for it now.
 		if (urgency === NOW && job.id) {
 			const queued = await this.queue.getJob(job.id);
@@ -64,4 +54,28 @@ export class ShareImageJobs {
 		}
 		return false;
 	}
+
+	/** Queues many renders drawn ahead in one round trip (images that cannot be drawn yet: their card just changed). */
+	async renderAll(data: RenderShareImage[]) {
+		if (!data.length) return;
+		await this.queue.addBulk(
+			data.map((d) => ({
+				name: RENDER_SHARE_IMAGE,
+				data: d,
+				opts: options(d, AHEAD)
+			}))
+		);
+	}
 }
+
+const options = (data: RenderShareImage, urgency: Urgency) => ({
+	jobId: `render-${randomUUID()}`,
+	// BullMQ takes unprioritised jobs first, so a waiting unfurl never
+	// queues behind a backfill of thousands.
+	...(urgency === AHEAD ? { priority: 10 } : {}),
+	deduplication: { id: data.key },
+	attempts: 3,
+	backoff: { type: 'exponential' as const, delay: 15_000 },
+	removeOnComplete: 1000,
+	removeOnFail: 1000
+});

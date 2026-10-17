@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { QuotesModule } from 'quotes/quotes.module';
+import { ShareModule } from 'share/share.module';
 import {
 	CurrentUserController,
 	MeController,
@@ -14,7 +15,7 @@ import {
 } from './services';
 
 @Module({
-	imports: [QuotesModule],
+	imports: [QuotesModule, ShareModule],
 	controllers: [
 		CurrentUserController,
 		UsersController,

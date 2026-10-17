@@ -4,7 +4,7 @@ import {
 	S3Client
 } from '@aws-sdk/client-s3';
 import { getQueueToken } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
+import { Worker, type Queue } from 'bullmq';
 import { AppFactory } from '@test/factory/app';
 import { TEST_ADMIN, TEST_USER } from '@test/factory/constants';
 import {
@@ -19,6 +19,7 @@ import {
 	shareKey,
 	shareRevision
 } from 'share';
+import { CHECK_ORIGINALITY, MATCHING_QUEUE } from 'submissions/services';
 
 /** Share images and og:images, against the real test stack and bucket. */
 describe('Share images', () => {
@@ -226,14 +227,14 @@ describe('Share images', () => {
 		const owner = await app.db.user.findUniqueOrThrow({
 			where: { email: TEST_USER.email }
 		});
+		const cookie = (await app.signIn(TEST_USER.email, TEST_USER.password))
+			.cookie!;
 		for (const status of ['PRIVATE', 'SUBMITTED', 'WITHDRAWN'] as const) {
 			const row = await quote(status);
 			await app.db.quote.update({
 				where: { id: row.id },
 				data: { contributorId: owner.id }
 			});
-			const cookie = (await app.signIn(TEST_USER.email, TEST_USER.password))
-				.cookie!;
 			const res = await get(`/v1/quotes/${row.publicId}/og.png`).set(
 				'Cookie',
 				cookie
@@ -354,11 +355,112 @@ describe('Share images', () => {
 		const counts = await service.backfill();
 		const keys = (await queue.getJobs(['prioritized'])).map((j) => j.data.key);
 		expect(keys).toContain(keyOf(missing));
+		expect(keys).toContain(keyOf(missing, 'terminal'));
+		expect(keys).toContain(keyOf(drawn, 'terminal'));
 		expect(keys).not.toContain(keyOf(drawn));
 		expect(keys).not.toContain(keyOf(hidden));
 		expect(keys.some((k) => k.startsWith('og/authors/dijkstra-'))).toBe(true);
 		expect(keys.some((k) => k.startsWith('og/topics/'))).toBe(true);
 		expect(counts.queued).toBe(keys.length);
 		expect(await queue.getJobs(['waiting'])).toHaveLength(0);
+	});
+
+	it('renaming an author queues its quotes’ new cards and its own', async () => {
+		const row = await quote();
+		const admin = (await app.signIn(TEST_ADMIN.email, TEST_ADMIN.password))
+			.cookie!;
+		const res = await app.request
+			.patch(`/v1/admin/authors/${row.authorId}`)
+			.set('Cookie', admin)
+			.send({ name: 'E. W. Dijkstra' });
+		try {
+			expect(res.status).toBe(200);
+			const renamed = await app.db.quote.findUniqueOrThrow({
+				where: { id: row.id },
+				include: { author: true, contributor: true }
+			});
+			const keys = (await queued()).map((j) => j.data.key);
+			expect(keys).toEqual(
+				expect.arrayContaining([keyOf(renamed), keyOf(renamed, 'terminal')])
+			);
+			expect(keys).not.toContain(keyOf(row));
+			expect(keys.some((k) => k.startsWith('og/authors/dijkstra-'))).toBe(true);
+		} finally {
+			await app.db.author.update({
+				where: { id: row.authorId! },
+				data: { name: 'Edsger W. Dijkstra' }
+			});
+		}
+	});
+
+	it('a new handle queues the member’s originals’ new cards', async () => {
+		const owner = await app.db.user.findUniqueOrThrow({
+			where: { email: TEST_USER.email }
+		});
+		const row = await app.db.quote.create({
+			data: {
+				publicId: `q_sh${String(++n).padStart(4, '0')}`,
+				text: 'Name things for the reader, not the writer.',
+				type: 'ORIGINAL',
+				status: 'PUBLISHED',
+				contributorId: owner.id,
+				publishedAt: new Date()
+			},
+			include: { author: true, contributor: true }
+		});
+		const cookie = (await app.signIn(TEST_USER.email, TEST_USER.password))
+			.cookie!;
+		const handle = (to: string) =>
+			app.request.patch('/v1/me').set('Cookie', cookie).send({ handle: to });
+		expect((await handle('sharecard')).status).toBe(200);
+		try {
+			const keys = (await queued()).map((j) => j.data.key);
+			const renamed = {
+				...row,
+				contributor: { ...row.contributor!, handle: 'sharecard' }
+			};
+			expect(keys.sort()).toEqual(
+				[keyOf(renamed), keyOf(renamed, 'terminal')].sort()
+			);
+		} finally {
+			expect((await handle(owner.handle)).status).toBe(200);
+		}
+	});
+
+	it('queues an original’s images as the worker’s check publishes it', async () => {
+		const row = await app.db.quote.create({
+			data: {
+				publicId: `q_sh${String(++n).padStart(4, '0')}`,
+				text: 'Delete the code you were proudest of.',
+				type: 'ORIGINAL',
+				status: 'ORIGINALITY_CHECK'
+			},
+			include: { author: true, contributor: true }
+		});
+		// Stands in for the worker's `matching` consumer: publishes, and says which.
+		const worker = new Worker(
+			MATCHING_QUEUE,
+			async () => {
+				await app.db.quote.update({
+					where: { id: row.id },
+					data: { status: 'PUBLISHED', publishedAt: new Date() }
+				});
+				return { outcome: 'published', publicId: row.publicId };
+			},
+			{ connection: queue.opts.connection }
+		);
+		try {
+			const matching = app.instance.get<Queue>(getQueueToken(MATCHING_QUEUE));
+			await matching.add(CHECK_ORIGINALITY, { quoteId: row.id });
+			await vi.waitFor(
+				async () => {
+					const keys = (await queued()).map((j) => j.data.key).sort();
+					expect(keys).toEqual([keyOf(row), keyOf(row, 'terminal')].sort());
+				},
+				{ timeout: 10_000, interval: 200 }
+			);
+		} finally {
+			await worker.close();
+		}
 	});
 });

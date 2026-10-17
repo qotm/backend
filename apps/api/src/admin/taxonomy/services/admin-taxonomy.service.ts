@@ -7,6 +7,7 @@ import { Prisma } from '@qotm/db/client';
 import { recordAudit, type AuditEntry } from 'audit';
 import { PrismaService } from 'common/services';
 import { feedWhere } from 'quotes/visibility';
+import { ShareImagesService } from 'share/services';
 import type {
 	CreateAuthor,
 	CreateSource,
@@ -80,7 +81,10 @@ const contains = (search: string) =>
  */
 @Injectable()
 export class AdminTaxonomyService {
-	constructor(private db: PrismaService) {}
+	constructor(
+		private db: PrismaService,
+		private share: ShareImagesService
+	) {}
 
 	// Authors
 
@@ -131,7 +135,7 @@ export class AdminTaxonomyService {
 	}
 
 	async updateAuthor(id: string, body: UpdateAuthor, actor: Actor) {
-		await this.db.$transaction(async (tx) => {
+		const [before, after] = await this.db.$transaction(async (tx) => {
 			const current = await tx.author.findUnique({ where: { id } });
 			if (!current) throw new NotFoundException('Author not found');
 			checkYears({ ...current, ...body });
@@ -142,7 +146,13 @@ export class AdminTaxonomyService {
 				target: { type: 'author', id: author.slug },
 				note: changed(body)
 			});
+			return [current, author] as const;
 		}, TX);
+		// Its quotes' cards credit it by name; its own card shows its name, years and path.
+		if (after.name !== before.name) {
+			await this.share.rerenderMany({ authorId: id });
+		}
+		await this.share.rerenderPage('author', after.slug);
 		return this.author(id);
 	}
 
@@ -329,7 +339,7 @@ export class AdminTaxonomyService {
 	}
 
 	async updateTopic(id: string, body: UpdateTopic, actor: Actor) {
-		await this.db.$transaction(async (tx) => {
+		const slug = await this.db.$transaction(async (tx) => {
 			if (!(await tx.topic.findUnique({ where: { id } }))) {
 				throw new NotFoundException('Topic not found');
 			}
@@ -340,7 +350,9 @@ export class AdminTaxonomyService {
 				target: { type: 'topic', id: topic.slug },
 				note: changed(body)
 			});
+			return topic.slug;
 		}, TX);
+		await this.share.rerenderPage('topic', slug);
 		return this.topic(id);
 	}
 

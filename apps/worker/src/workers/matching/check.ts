@@ -94,7 +94,7 @@ async function record(tx: Tx, quoteId: string, matches: Match[]) {
 
 export type CheckOutcome =
 	| { outcome: 'skipped'; reason: string }
-	| { outcome: 'published' }
+	| { outcome: 'published'; publicId: string }
 	| { outcome: 'held'; matches: Match[] };
 
 /**
@@ -108,7 +108,7 @@ export function checkOriginality(
 	return db.$transaction(async (tx) => {
 		const quote = await tx.quote.findUnique({
 			where: { id: quoteId },
-			select: { id: true, text: true, type: true, status: true }
+			select: { id: true, publicId: true, text: true, type: true, status: true }
 		});
 		if (!quote) return { outcome: 'skipped', reason: 'quote not found' };
 		if (quote.type !== 'ORIGINAL' || quote.status !== 'ORIGINALITY_CHECK') {
@@ -139,7 +139,7 @@ export function checkOriginality(
 				at: now
 			}
 		});
-		return { outcome: 'published' };
+		return { outcome: 'published', publicId: quote.publicId };
 	});
 }
 

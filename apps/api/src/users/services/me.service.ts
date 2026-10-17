@@ -8,6 +8,7 @@ import { Prisma } from '@qotm/db/client';
 import { QuoteType } from '@qotm/db/enums';
 import { PrismaService } from 'common/services';
 import { hasRole } from 'lib/access';
+import { ShareImagesService } from 'share/services';
 import type { DeleteMe, UpdateMe } from '../dto';
 import type { MeEntity } from '../entity';
 
@@ -39,7 +40,10 @@ const ISOLATION = {
 
 @Injectable()
 export class MeService {
-	constructor(private db: PrismaService) {}
+	constructor(
+		private db: PrismaService,
+		private share: ShareImagesService
+	) {}
 
 	async get(userId: string): Promise<MeEntity> {
 		const user = await this.db.user.findUnique({
@@ -56,8 +60,9 @@ export class MeService {
 	 * and nobody else can take it; the member may take back one of their own
 	 * old handles.
 	 */
-	update(userId: string, input: UpdateMe): Promise<MeEntity> {
-		return this.db.$transaction(async (tx) => {
+	async update(userId: string, input: UpdateMe): Promise<MeEntity> {
+		let renamed = false;
+		const me = await this.db.$transaction(async (tx) => {
 			const current = await tx.user.findUniqueOrThrow({
 				where: { id: userId },
 				select: { handle: true }
@@ -88,6 +93,7 @@ export class MeService {
 					data: { userId, oldHandle: current.handle }
 				});
 				data.handle = input.handle;
+				renamed = true;
 			}
 			const user = await tx.user.update({
 				where: { id: userId },
@@ -96,6 +102,14 @@ export class MeService {
 			});
 			return toMe(user);
 		}, ISOLATION);
+		// Their originals' cards credit them by handle.
+		if (renamed) {
+			await this.share.rerenderMany({
+				contributorId: userId,
+				type: QuoteType.ORIGINAL
+			});
+		}
+		return me;
 	}
 
 	/**
@@ -106,7 +120,7 @@ export class MeService {
 	 * cannot delete itself.
 	 */
 	async delete(userId: string, input: DeleteMe) {
-		await this.db.$transaction(async (tx) => {
+		const originals = await this.db.$transaction(async (tx) => {
 			const user = await tx.user.findUniqueOrThrow({
 				where: { id: userId },
 				select: { handle: true, role: true }
@@ -133,7 +147,14 @@ export class MeService {
 			await tx.quote.deleteMany({
 				where: { contributorId: userId, type: QuoteType.PRIVATE }
 			});
+			const originals = await tx.quote.findMany({
+				where: { contributorId: userId, type: QuoteType.ORIGINAL },
+				select: { id: true }
+			});
 			await tx.user.delete({ where: { id: userId } });
+			return originals;
 		}, ISOLATION);
+		// Their originals stay, now credited to "a former member".
+		await this.share.rerenderMany({ id: { in: originals.map((q) => q.id) } });
 	}
 }

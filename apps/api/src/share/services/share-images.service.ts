@@ -91,19 +91,21 @@ export class ShareImagesService implements OnApplicationBootstrap {
 		private logger: LoggerService
 	) {}
 
-	/** Outside tests, check every og:image at boot: after an import or a template bump, they are drawn ahead. */
+	/** Outside tests, check every image at boot: after an import or a template bump, they are drawn ahead. */
 	onApplicationBootstrap() {
 		if (this.config.app.env === 'test') return;
 		void this.scheduledBackfill();
 	}
 
 	/**
-	 * Daily, and at boot: quotes that went public without a review decision
-	 * (an original's check, a submission entering review) and new author or
-	 * topic cards. One replica at a time; a run checks Redis flags first, so
-	 * a run with nothing to draw is cheap.
+	 * Hourly, and at boot: the safety net behind the renders queued as cards
+	 * change (a decision, a correction, an original's check, an edit to an
+	 * author or a member), for whatever those missed: an event during a
+	 * restart, a new feature quote on an author's or topic's card. One
+	 * replica at a time; a run checks Redis flags first, so a run with
+	 * nothing to draw is cheap.
 	 */
-	@Cron('30 4 * * *', { name: 'og-backfill', timeZone: 'UTC' })
+	@Cron('30 * * * *', { name: 'og-backfill', timeZone: 'UTC' })
 	async scheduledBackfill() {
 		if ((await this.cache.incr(BACKFILL_LOCK, 3600)) > 1) return;
 		try {
@@ -170,9 +172,40 @@ export class ShareImagesService implements OnApplicationBootstrap {
 	}
 
 	/**
-	 * Queues every og:image not rendered yet: each public quote's card, every
-	 * author and topic with a quote in the feeds, and the site card. Behind
-	 * any render someone waits for.
+	 * After an edit that changes many cards at once (an author renamed, a
+	 * member's new handle, a deleted account's originals): queues the new
+	 * images of every public quote `where` picks, in one batch. Their keys are
+	 * new, so none is looked for first. Never fails the edit.
+	 */
+	async rerenderMany(where: Prisma.QuoteWhereInput) {
+		try {
+			const quotes = await this.db.quote.findMany({
+				where: { AND: [where, { status: { notIn: [...NOT_PUBLIC] } }] },
+				include: QUOTE_CARD
+			});
+			await this.jobs.renderAll(
+				quotes.flatMap((quote) =>
+					SHARE_VARIANTS.map((variant) => quoteJob(quote, variant))
+				)
+			);
+		} catch (error) {
+			this.logger.warn({ error }, 'Could not queue share images');
+		}
+	}
+
+	/** After an author or topic edit: its page card. Never fails the edit. */
+	async rerenderPage(kind: 'author' | 'topic', slug: string) {
+		try {
+			await this.ensure(await this.target({ kind, slug }), AHEAD);
+		} catch (error) {
+			this.logger.warn({ error, kind, slug }, 'Could not queue a page card');
+		}
+	}
+
+	/**
+	 * Queues every image not rendered yet: each public quote's cards (the
+	 * quote card and the terminal card), every author and topic with a quote
+	 * in the feeds, and the site card. Behind any render someone waits for.
 	 */
 	async backfill() {
 		const counts = { checked: 0, queued: 0 };
@@ -193,13 +226,9 @@ export class ShareImagesService implements OnApplicationBootstrap {
 				...(cursor ? { cursor: { id: cursor }, skip: 1 } : {})
 			});
 			for (const quote of page) {
-				const card = shareCardOf(quote);
-				const revision = shareRevision(card, 'quote');
-				await queue({
-					key: shareKey(quote.publicId, 'quote', revision),
-					variant: 'quote',
-					card
-				});
+				for (const variant of SHARE_VARIANTS) {
+					await queue(quoteJob(quote, variant));
+				}
 			}
 			if (page.length < 500) break;
 			cursor = page[page.length - 1].id;
@@ -263,9 +292,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 		if (!quote || !isPublic(quote.status)) {
 			throw new NotFoundException('Quote not found');
 		}
-		const card = shareCardOf(quote);
-		const revision = shareRevision(card, variant);
-		return { key: shareKey(publicId, variant, revision), variant, card };
+		return quoteJob(quote, variant);
 	}
 
 	/** An author's or topic's card: its name, its line and its shortest curated quote. */
@@ -332,6 +359,15 @@ const QUOTE_CARD = {
 	author: { select: { name: true } },
 	contributor: { select: { handle: true } }
 } satisfies Prisma.QuoteInclude;
+
+const quoteJob = (
+	quote: Prisma.QuoteGetPayload<{ include: typeof QUOTE_CARD }>,
+	variant: ShareVariant
+): RenderShareImage => {
+	const card = shareCardOf(quote);
+	const revision = shareRevision(card, variant);
+	return { key: shareKey(quote.publicId, variant, revision), variant, card };
+};
 
 const pageJob = (card: PageCard): RenderShareImage => ({
 	key: pageKey(card, pageRevision(card)),
