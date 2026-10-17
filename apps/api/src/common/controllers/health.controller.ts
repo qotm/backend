@@ -39,7 +39,13 @@ export class HealthController {
 	async check() {
 		const { heapMaxMb, rssMaxMb, diskThreshold, diskPath } = this.config.health;
 		return this.health.check([
-			() => this.http.pingCheck('http', this.config.app.host),
+			// The server itself, over loopback: through the public hostname a DNS
+			// hiccup failed the container's check while the API was fine.
+			() =>
+				this.http.pingCheck(
+					'http',
+					`http://127.0.0.1:${this.config.app.port}/`
+				),
 			() => this.prisma.isHealthy('database'),
 			() => this.memory.checkHeap('memory_heap', heapMaxMb * MB),
 			() => this.memory.checkRSS('memory_rss', rssMaxMb * MB),

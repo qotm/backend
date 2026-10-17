@@ -38,7 +38,7 @@ describe('HealthController', () => {
 	});
 
 	it('should delegate to HealthCheckService.check with proper indicators', async () => {
-		config.app = { host: 'http://localhost:5000' } as any;
+		config.app = { host: 'https://api.example.com', port: 5060 } as any;
 		// Non-default values, so the assertions prove config reaches the checks.
 		config.health = {
 			heapMaxMb: 512,
@@ -61,7 +61,10 @@ describe('HealthController', () => {
 		const result = await controller.check();
 
 		expect(health.check).toHaveBeenCalled();
-		expect(http.pingCheck).toHaveBeenCalledWith('http', config.app.host);
+		expect(http.pingCheck).toHaveBeenCalledWith(
+			'http',
+			'http://127.0.0.1:5060/'
+		);
 		expect(prisma.isHealthy).toHaveBeenCalledWith('database');
 		const MB = 1024 * 1024;
 		expect(memory.checkHeap).toHaveBeenCalledWith('memory_heap', 512 * MB);
