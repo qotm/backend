@@ -450,4 +450,20 @@ describe('Admin review queues', () => {
 			).toBe(403);
 		});
 	});
+
+	it('answers the page that holds a focused item, so a link opens it in place', async () => {
+		const all = await as('admin').get('/v1/admin/verification?limit=50');
+		expect(all.body.list.length).toBeGreaterThan(1);
+		const second = all.body.list[1].id;
+		const res = await as('admin').get(
+			`/v1/admin/verification?limit=1&focus=${second}`
+		);
+		expect(res.body.currentPage).toBe(2);
+		expect(res.body.list.map((q: { id: string }) => q.id)).toEqual([second]);
+		// Not in the queue: the asked page.
+		const away = await as('admin').get(
+			'/v1/admin/verification?limit=1&page=1&focus=q_notqueued'
+		);
+		expect(away.body.currentPage).toBe(1);
+	});
 });

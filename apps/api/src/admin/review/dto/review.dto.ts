@@ -4,7 +4,16 @@ import { CURATION_CHECKLIST, type ChecklistItem } from 'review';
 
 export const QueueQuery = z.object({
 	page: z.coerce.number().int().min(1).default(1),
-	limit: z.coerce.number().int().min(1).max(50).default(20)
+	limit: z.coerce.number().int().min(1).max(50).default(20),
+	/**
+	 * An item's public id (`q_…`, `r_…`): answer the page that holds it instead
+	 * of `page`, so a link to it opens it in place. Ignored when it is not in
+	 * the queue.
+	 */
+	focus: z
+		.string()
+		.regex(/^[qr]_[a-z0-9]+$/)
+		.optional()
 });
 export type QueueQuery = z.output<typeof QueueQuery>;
 
@@ -82,7 +91,12 @@ export const CurationDecision = z
 export type CurationDecision = z.output<typeof CurationDecision>;
 
 export const ReportQueueQuery = QueueQuery.extend({
-	status: z.enum(['open', 'resolved']).default('open')
+	status: z.enum(['open', 'resolved']).default('open'),
+	/** Only the reports on this quote (its public id), as the admin quote drawer asks. */
+	quote: z
+		.string()
+		.regex(/^q_[a-z0-9]+$/)
+		.optional()
 });
 export type ReportQueueQuery = z.output<typeof ReportQueueQuery>;
 

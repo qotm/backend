@@ -256,4 +256,40 @@ describe('Admin reports', () => {
 			res.body.list.every((r: { status: string }) => r.status === 'RESOLVED')
 		).toBe(true);
 	});
+
+	it('lists one quote’s reports on request', async () => {
+		const all = await app.request
+			.get('/v1/admin/reports')
+			.set('Cookie', cookie.admin);
+		const quote = all.body.list[0].quote.id;
+		const res = await app.request
+			.get(`/v1/admin/reports?quote=${quote}`)
+			.set('Cookie', cookie.admin);
+		expect(res.body.list.length).toBeGreaterThan(0);
+		expect(
+			res.body.list.every(
+				(r: { quote: { id: string } }) => r.quote.id === quote
+			)
+		).toBe(true);
+		expect(
+			(
+				await app.request
+					.get('/v1/admin/reports?quote=nope')
+					.set('Cookie', cookie.admin)
+			).status
+		).toBe(400);
+	});
+
+	it('answers the page that holds a focused report', async () => {
+		const all = await app.request
+			.get('/v1/admin/reports?limit=50')
+			.set('Cookie', cookie.admin);
+		expect(all.body.list.length).toBeGreaterThan(1);
+		const last = all.body.list.at(-1).id;
+		const res = await app.request
+			.get(`/v1/admin/reports?limit=1&focus=${last}`)
+			.set('Cookie', cookie.admin);
+		expect(res.body.currentPage).toBe(all.body.list.length);
+		expect(res.body.list[0].id).toBe(last);
+	});
 });

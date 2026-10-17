@@ -49,7 +49,7 @@ export class AdminSubmissionsController {
 	@Op(
 		'admin/submissions',
 		'/v1/admin/submissions',
-		'New quotes waiting for their first check, longest-waiting first'
+		'Originals the originality check held for a moderator, longest-waiting first'
 	)
 	@Returns(QueuePageEntity)
 	@ReportPermissions('moderate')

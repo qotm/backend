@@ -53,14 +53,11 @@ type Tx = Prisma.TransactionClient;
 
 /**
  * What each queue holds. Submissions: originals the originality check holds
- * for a moderator, and canonical quotes nobody has picked up yet.
+ * for a moderator (canonical quotes wait in verification, not here).
  * Verification: canonical quotes from submission until a verifier decides.
  */
 export const QUEUES = {
-	submissions: [
-		{ type: QuoteType.ORIGINAL, status: S.ORIGINALITY_CHECK },
-		{ type: QuoteType.CANONICAL, status: S.SUBMITTED }
-	],
+	submissions: [{ type: QuoteType.ORIGINAL, status: S.ORIGINALITY_CHECK }],
 	verification: [
 		{
 			type: QuoteType.CANONICAL,
@@ -152,13 +149,23 @@ export class ReviewService {
 			where,
 			select: {
 				id: true,
+				publicId: true,
 				events: { select: { at: true }, orderBy: { at: 'desc' }, take: 1 }
 			}
 		});
-		const order = ids
-			.map((q) => ({ id: q.id, since: q.events[0]?.at ?? new Date(0) }))
-			.sort((a, b) => +a.since - +b.since || a.id.localeCompare(b.id))
-			.slice((query.page - 1) * query.limit, query.page * query.limit);
+		const sorted = ids
+			.map((q) => ({
+				id: q.id,
+				publicId: q.publicId,
+				since: q.events[0]?.at ?? new Date(0)
+			}))
+			.sort((a, b) => +a.since - +b.since || a.id.localeCompare(b.id));
+		const focused = query.focus
+			? sorted.findIndex((q) => q.publicId === query.focus)
+			: -1;
+		const page =
+			focused < 0 ? query.page : Math.floor(focused / query.limit) + 1;
+		const order = sorted.slice((page - 1) * query.limit, page * query.limit);
 
 		const rows = await this.db.quote.findMany({
 			where: { id: { in: order.map((o) => o.id) } },
@@ -210,7 +217,7 @@ export class ReviewService {
 			list,
 			total,
 			pageSize: list.length,
-			currentPage: query.page,
+			currentPage: page,
 			lastPage: Math.ceil(total / query.limit) || 1
 		};
 	}
@@ -381,14 +388,16 @@ export class ReviewService {
 	/** Reports for the moderators: open ones oldest first, or resolved ones newest first. */
 	async reports(query: ReportQueueQuery): Promise<AdminReportPageEntity> {
 		const open = query.status === 'open';
-		const where: Prisma.ReportWhereInput = open
-			? { status: { not: ReportStatus.RESOLVED } }
-			: { status: ReportStatus.RESOLVED };
+		const where: Prisma.ReportWhereInput = {
+			status: open ? { not: ReportStatus.RESOLVED } : ReportStatus.RESOLVED,
+			...(query.quote ? { quote: { publicId: query.quote } } : {})
+		};
+		const page = await this.reportPage(where, open, query);
 		const [rows, total] = await Promise.all([
 			this.db.report.findMany({
 				where,
 				orderBy: open ? { createdAt: 'asc' } : { resolvedAt: 'desc' },
-				skip: (query.page - 1) * query.limit,
+				skip: (page - 1) * query.limit,
 				take: query.limit,
 				include: {
 					reporter: { select: { handle: true } },
@@ -427,9 +436,31 @@ export class ReviewService {
 			list,
 			total,
 			pageSize: list.length,
-			currentPage: query.page,
+			currentPage: page,
 			lastPage: Math.ceil(total / query.limit) || 1
 		};
+	}
+
+	/** The page a focused report is on (counting the reports listed before it), else the asked one. */
+	private async reportPage(
+		where: Prisma.ReportWhereInput,
+		open: boolean,
+		query: ReportQueueQuery
+	) {
+		const number = query.focus ? parseReportRef(query.focus) : null;
+		const report = number
+			? await this.db.report.findFirst({
+					where: { ...where, number },
+					select: { createdAt: true, resolvedAt: true }
+				})
+			: null;
+		if (!report) return query.page;
+		const before = await this.db.report.count({
+			where: open
+				? { ...where, createdAt: { lt: report.createdAt } }
+				: { ...where, resolvedAt: { gt: report.resolvedAt ?? new Date(0) } }
+		});
+		return Math.floor(before / query.limit) + 1;
 	}
 
 	/**

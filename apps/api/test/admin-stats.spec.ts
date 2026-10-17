@@ -66,7 +66,7 @@ describe('Admin stats', () => {
 		verifier = (await app.signIn(email, 'secret')).cookie!;
 
 		// The queues.
-		await quote('SUBMITTED', 'CANONICAL', ago(3)); // verification + submissions
+		await quote('SUBMITTED', 'CANONICAL', ago(3)); // verification
 		await quote('NEEDS_EVIDENCE', 'CANONICAL', ago(6)); // verification, oldest
 		await quote('ORIGINALITY_CHECK', 'ORIGINAL', ago(2)); // submissions
 		await quote('VERIFIED', 'CANONICAL', ago(4)); // curation
@@ -130,7 +130,7 @@ describe('Admin stats', () => {
 			verification: 2,
 			curation: 2,
 			reports: 1,
-			submissions: 2
+			submissions: 1
 		});
 		await quote('SUBMITTED');
 		expect((await get('/v1/admin/stats/counts')).body.verification).toBe(2);
@@ -151,7 +151,7 @@ describe('Admin stats', () => {
 		expect(queues.curation).toMatchObject({ count: 2, communityCandidates: 1 });
 		expect(queues.reports).toMatchObject({ count: 1, onCurated: 1 });
 		expect(queues.submissions).toMatchObject({
-			count: 2,
+			count: 1,
 			originalityChecks: 1
 		});
 	});
