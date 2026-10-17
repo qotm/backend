@@ -25,6 +25,8 @@ import { CHECK_ORIGINALITY, MATCHING_QUEUE } from 'submissions/services';
 
 /** Share images and og:images, against the real test stack and bucket. */
 describe('Share images', () => {
+	/** The tests' key prefix (S3_SHARE_PREFIX): their images, apart from development's. */
+	const P = process.env.S3_SHARE_PREFIX ?? '';
 	let app: AppFactory;
 	let queue: Queue;
 	let s3: S3Client;
@@ -54,6 +56,7 @@ describe('Share images', () => {
 	}
 	type Row = Awaited<ReturnType<typeof quote>>;
 	const keyOf = (row: Row, variant: 'quote' | 'terminal' = 'quote') =>
+		P +
 		shareKey(row.publicId, variant, shareRevision(shareCardOf(row), variant));
 
 	/** Stands in for the worker: puts a PNG where the render would. */
@@ -69,7 +72,7 @@ describe('Share images', () => {
 		);
 	}
 
-	const siteKey = pageKey(SITE_CARD, pageRevision(SITE_CARD));
+	const siteKey = P + pageKey(SITE_CARD, pageRevision(SITE_CARD));
 	/** Every queued render, prioritised (drawn ahead) or not. */
 	const queued = () => queue.getJobs(['waiting', 'prioritized']);
 
@@ -88,15 +91,15 @@ describe('Share images', () => {
 			credentials: { accessKeyId, secretAccessKey },
 			forcePathStyle: true
 		});
-		// The bucket is shared with development, whose worker draws the site's
-		// and the seeded authors' cards, and a run that died before afterAll
-		// leaves its own: start from none of the images this spec counts on.
+		// A run that died before afterAll leaves its images behind: start from
+		// none of them. Only under the tests' own prefix, never development's.
+		expect(P).toBe('test/');
 		for (const prefix of [
 			'share/q_sh',
 			'og/site-',
 			'og/authors/dijkstra-',
 			'og/topics/og-debugging-'
-		]) {
+		].map((p) => P + p)) {
 			const listed = await s3.send(
 				new ListObjectsV2Command({
 					Bucket: app.config.s3.bucket,
@@ -333,7 +336,7 @@ describe('Share images', () => {
 			(j) => j.data.variant === 'page' && j.data.card.kind === 'author'
 		);
 		expect(job!.data).toMatchObject({
-			key: expect.stringMatching(/^og\/authors\/dijkstra-[0-9a-f]{12}\.png$/),
+			key: expect.stringMatching(/^test\/og\/authors\/dijkstra-[0-9a-f]{12}\.png$/),
 			card: {
 				path: '/authors/dijkstra',
 				eyebrow: 'Author',
@@ -386,8 +389,10 @@ describe('Share images', () => {
 		expect(keys).toContain(keyOf(drawn, 'terminal'));
 		expect(keys).not.toContain(keyOf(drawn));
 		expect(keys).not.toContain(keyOf(hidden));
-		expect(keys.some((k) => k.startsWith('og/authors/dijkstra-'))).toBe(true);
-		expect(keys.some((k) => k.startsWith('og/topics/'))).toBe(true);
+		expect(keys.some((k) => k.startsWith(`${P}og/authors/dijkstra-`))).toBe(
+			true
+		);
+		expect(keys.some((k) => k.startsWith(`${P}og/topics/`))).toBe(true);
 		expect(counts.queued).toBe(keys.length);
 		expect(await queue.getJobs(['waiting'])).toHaveLength(0);
 	});
@@ -411,7 +416,9 @@ describe('Share images', () => {
 				expect.arrayContaining([keyOf(renamed), keyOf(renamed, 'terminal')])
 			);
 			expect(keys).not.toContain(keyOf(row));
-			expect(keys.some((k) => k.startsWith('og/authors/dijkstra-'))).toBe(true);
+			expect(keys.some((k) => k.startsWith(`${P}og/authors/dijkstra-`))).toBe(
+				true
+			);
 		} finally {
 			await app.db.author.update({
 				where: { id: row.authorId! },

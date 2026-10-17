@@ -92,6 +92,8 @@ namespace Config {
 		endpoint: string;
 		bucket: string;
 		region: string;
+		/** Put before every share image's and og:image's key: the tests' `test/`, apart from development's in a shared bucket. */
+		sharePrefix: string;
 	}
 
 	export interface Releases {
@@ -197,6 +199,11 @@ namespace Config {
 			S3_BUCKET_NAME: str(),
 			S3_ACCESS_KEY_ID: z.string().optional(),
 			S3_SECRET_ACCESS_KEY: z.string().optional(),
+			// '' or ends in '/': `test/` keeps the tests' images apart from development's.
+			S3_SHARE_PREFIX: z
+				.string()
+				.regex(/^$|^[a-z0-9-]+\/$/)
+				.optional(),
 			// Empty means unset (a compose file passes `${RELEASES_BASE_URL}` as '').
 			RELEASES_BASE_URL: z.url().or(z.literal('')).optional(),
 			RATE_LIMIT_ENABLED: z.enum(['true', 'false']).default('true'),
@@ -281,7 +288,8 @@ namespace Config {
 			secretAccessKey: env.S3_SECRET_ACCESS_KEY || '',
 			endpoint: env.S3_ENDPOINT || '',
 			bucket: env.S3_BUCKET_NAME || '',
-			region: env.S3_REGION || 'us-east-1'
+			region: env.S3_REGION || 'us-east-1',
+			sharePrefix: env.S3_SHARE_PREFIX || ''
 		},
 		releases: {
 			// Defaults to the bucket's own path-style URL (development); the

@@ -91,6 +91,11 @@ export class ShareImagesService implements OnApplicationBootstrap {
 		private logger: LoggerService
 	) {}
 
+	/** Before every key: `S3_SHARE_PREFIX`, `test/` in the tests' shared bucket. */
+	private get prefix() {
+		return this.config.s3.sharePrefix;
+	}
+
 	/** Outside tests, check every image at boot: after an import or a template bump, they are drawn ahead. */
 	onApplicationBootstrap() {
 		if (this.config.app.env === 'test') return;
@@ -185,7 +190,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 			});
 			await this.jobs.renderAll(
 				quotes.flatMap((quote) =>
-					SHARE_VARIANTS.map((variant) => quoteJob(quote, variant))
+					SHARE_VARIANTS.map((variant) => quoteJob(quote, variant, this.prefix))
 				)
 			);
 		} catch (error) {
@@ -227,7 +232,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 			});
 			for (const quote of page) {
 				for (const variant of SHARE_VARIANTS) {
-					await queue(quoteJob(quote, variant));
+					await queue(quoteJob(quote, variant, this.prefix));
 				}
 			}
 			if (page.length < 500) break;
@@ -273,9 +278,11 @@ export class ShareImagesService implements OnApplicationBootstrap {
 			case 'quote':
 				return this.locate(target.id, target.variant ?? 'quote');
 			case 'site':
-				return Promise.resolve(pageJob(SITE_CARD));
+				return Promise.resolve(pageJob(SITE_CARD, this.prefix));
 			default:
-				return this.pageCard(target.kind, target.slug).then(pageJob);
+				return this.pageCard(target.kind, target.slug).then((card) =>
+					pageJob(card, this.prefix)
+				);
 		}
 	}
 
@@ -292,7 +299,7 @@ export class ShareImagesService implements OnApplicationBootstrap {
 		if (!quote || !isPublic(quote.status)) {
 			throw new NotFoundException('Quote not found');
 		}
-		return quoteJob(quote, variant);
+		return quoteJob(quote, variant, this.prefix);
 	}
 
 	/** An author's or topic's card: its name, its line and its shortest curated quote. */
@@ -362,15 +369,20 @@ const QUOTE_CARD = {
 
 const quoteJob = (
 	quote: Prisma.QuoteGetPayload<{ include: typeof QUOTE_CARD }>,
-	variant: ShareVariant
+	variant: ShareVariant,
+	prefix: string
 ): RenderShareImage => {
 	const card = shareCardOf(quote);
 	const revision = shareRevision(card, variant);
-	return { key: shareKey(quote.publicId, variant, revision), variant, card };
+	return {
+		key: prefix + shareKey(quote.publicId, variant, revision),
+		variant,
+		card
+	};
 };
 
-const pageJob = (card: PageCard): RenderShareImage => ({
-	key: pageKey(card, pageRevision(card)),
+const pageJob = (card: PageCard, prefix: string): RenderShareImage => ({
+	key: prefix + pageKey(card, pageRevision(card)),
 	variant: 'page',
 	card
 });
