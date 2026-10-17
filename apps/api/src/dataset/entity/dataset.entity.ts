@@ -20,7 +20,12 @@ export const ManifestEntity = z
 		}),
 		size: z.number().int().meta({ example: 2_900_000 }),
 		sha256: z.string().meta({ example: '4b7e91…c02a' }),
-		changes
+		changes,
+		/** The terms the dataset is shared under, and the credit they ask for. */
+		license: z.string().meta({
+			example:
+				'Quote texts and citations from Wikiquote … are under CC BY-SA 4.0 …'
+		})
 	})
 	.meta({ id: 'ManifestEntity' });
 export type ManifestEntity = z.input<typeof ManifestEntity>;

@@ -10,6 +10,15 @@
  */
 export const SCHEMA_VERSION = 1;
 
+/**
+ * The dataset's terms, written into every file's meta as a fourth row,
+ * `license` (files built before 2026-10-17 lack it): what CC BY-SA asks of
+ * anyone who copies Wikiquote's text. A meta row is not a schema change. The API's manifest
+ * says the same (`apps/api/src/dataset/license.ts`); keep the two in step.
+ */
+export const DATASET_LICENSE =
+	'Quote texts and citations from Wikiquote (https://en.wikiquote.org), by its contributors, are under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/); facts from Wikidata are CC0. Originals credited to a qotm member are theirs, shared under https://qotm.dev/terms.';
+
 export const SCHEMA = `
 PRAGMA user_version = ${SCHEMA_VERSION};
 

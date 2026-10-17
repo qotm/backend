@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterAll, describe, expect, it, vi } from 'vitest';
 import {
+	DATASET_LICENSE,
 	SCHEMA_VERSION,
 	TABLES,
 	loadDataset,
@@ -99,7 +100,8 @@ describe('writeDataset', () => {
 		expect(meta).toEqual({
 			version: 'v2026.09.1',
 			schemaVersion: '1',
-			builtAt: '2026-09-26T18:02:00.000Z'
+			builtAt: '2026-09-26T18:02:00.000Z',
+			license: DATASET_LICENSE
 		});
 	});
 

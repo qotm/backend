@@ -1,6 +1,6 @@
 import { rmSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { SCHEMA, SCHEMA_VERSION } from './schema.js';
+import { DATASET_LICENSE, SCHEMA, SCHEMA_VERSION } from './schema.js';
 
 export interface DatasetAuthor {
 	slug: string;
@@ -52,6 +52,7 @@ export function writeDataset(file: string, dataset: Dataset) {
 		meta.run('version', dataset.version);
 		meta.run('schemaVersion', String(SCHEMA_VERSION));
 		meta.run('builtAt', dataset.builtAt.toISOString());
+		meta.run('license', DATASET_LICENSE);
 
 		const authorIds = new Map<string, number>();
 		const authors = new Map<string, DatasetAuthor>();

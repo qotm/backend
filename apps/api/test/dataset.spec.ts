@@ -1,5 +1,6 @@
 import { AppFactory } from '@test/factory/app';
 import { TEST_USER } from '@test/factory/constants';
+import { DATASET_LICENSE } from 'dataset/license';
 import { syncCounterKey } from 'dataset/services';
 
 /** The dataset manifest and current release, against the real test stack. */
@@ -73,7 +74,8 @@ describe('Dataset', () => {
 				url: `${base}/v2026.09.1/qotm.sqlite`,
 				size: 2_900_000,
 				sha256,
-				changes: { eligible: 12701, added: 74, corrected: 9, withdrawn: 4 }
+				changes: { eligible: 12701, added: 74, corrected: 9, withdrawn: 4 },
+				license: DATASET_LICENSE
 			});
 			expect(res.headers['cache-control']).toBe('public, max-age=60');
 		});

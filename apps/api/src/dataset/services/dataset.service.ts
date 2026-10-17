@@ -8,6 +8,7 @@ import {
 } from 'common/services';
 import { DevicesService } from 'devices/services';
 import type { CurrentReleaseEntity, ManifestEntity } from '../entity';
+import { DATASET_LICENSE } from '../license';
 
 /** Syncs per UTC day, kept long enough for the dashboard's 30 days. */
 export const syncCounterKey = (day: Date) =>
@@ -52,7 +53,8 @@ export class DatasetService {
 				added: r.addedCount,
 				corrected: r.correctedCount,
 				withdrawn: r.withdrawnCount
-			}
+			},
+			license: DATASET_LICENSE
 		};
 	}
 
