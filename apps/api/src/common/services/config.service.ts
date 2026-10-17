@@ -106,6 +106,10 @@ namespace Config {
 		authWindow: number;
 		authMax: number;
 		ipHeaders: string[];
+		/** How many proxies in front of the API append to x-forwarded-for. */
+		proxyHops: number;
+		/** The web server's key: its requests skip the rate limit. Empty: none do. */
+		internalKey: string;
 	}
 
 	export interface OAuthGoogle {
@@ -200,7 +204,10 @@ namespace Config {
 			RATE_LIMIT_MAX: num().default(120),
 			RATE_LIMIT_AUTH_WINDOW: num().default(10),
 			RATE_LIMIT_AUTH_MAX: num().default(100),
-			RATE_LIMIT_IP_HEADERS: str().default('x-forwarded-for')
+			RATE_LIMIT_IP_HEADERS: str().default('x-forwarded-for'),
+			RATE_LIMIT_PROXY_HOPS: num(z.number().int().min(0)).default(1),
+			// Long enough not to be guessed; empty means no request is exempt.
+			INTERNAL_API_KEY: z.string().min(32).or(z.literal('')).optional()
 		})
 		.refine(
 			(env) =>
@@ -293,7 +300,9 @@ namespace Config {
 			ipHeaders: (env.RATE_LIMIT_IP_HEADERS || 'x-forwarded-for')
 				.split(',')
 				.map((header) => header.trim().toLowerCase())
-				.filter(Boolean)
+				.filter(Boolean),
+			proxyHops: Number(env.RATE_LIMIT_PROXY_HOPS ?? 1),
+			internalKey: env.INTERNAL_API_KEY || ''
 		},
 		oauth: {
 			google: {

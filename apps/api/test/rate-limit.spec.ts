@@ -14,9 +14,12 @@ describe('Rate limiting', () => {
 	// spec is the one that needs it on, so it flips the flag before the app boots
 	// and restores it afterwards (spec files run one at a time).
 	const previous = process.env.RATE_LIMIT_ENABLED;
+	const previousKey = process.env.INTERNAL_API_KEY;
+	const INTERNAL_KEY = 'i'.repeat(64);
 
 	beforeAll(async () => {
 		process.env.RATE_LIMIT_ENABLED = 'true';
+		process.env.INTERNAL_API_KEY = INTERNAL_KEY;
 		app = await AppFactory.init();
 		await app.refresh();
 	});
@@ -24,6 +27,8 @@ describe('Rate limiting', () => {
 	afterAll(async () => {
 		await app.close();
 		process.env.RATE_LIMIT_ENABLED = previous;
+		if (previousKey === undefined) delete process.env.INTERNAL_API_KEY;
+		else process.env.INTERNAL_API_KEY = previousKey;
 	});
 
 	// Buckets live in Redis and outlive a single test.
@@ -76,6 +81,40 @@ describe('Rate limiting', () => {
 
 			// Anonymous, separate handler → separate bucket.
 			expect((await app.request.get('/')).status).not.toBe(429);
+		});
+	});
+
+	describe('who a request counts against', () => {
+		it('ignores the x-forwarded-for entries a client sends itself', async () => {
+			for (let i = 0; i < PING_LIMIT; i++) {
+				const res = await app.request
+					.get(PING)
+					.set('x-forwarded-for', `198.51.100.${i}, 203.0.113.9`);
+				expect(res.status).toBe(200);
+			}
+			const res = await app.request
+				.get(PING)
+				.set('x-forwarded-for', '198.51.100.250, 203.0.113.9');
+			expect(res.status).toBe(429);
+		});
+
+		it('never limits the web server, which carries the internal key', async () => {
+			for (let i = 0; i <= PING_LIMIT; i++) {
+				const res = await app.request
+					.get(PING)
+					.set('x-qotm-server', INTERNAL_KEY);
+				expect(res.status).toBe(200);
+			}
+		});
+
+		it('limits a request with the wrong key like any other', async () => {
+			for (let i = 0; i < PING_LIMIT; i++) {
+				await app.request.get(PING).set('x-qotm-server', 'w'.repeat(64));
+			}
+			const res = await app.request
+				.get(PING)
+				.set('x-qotm-server', 'w'.repeat(64));
+			expect(res.status).toBe(429);
 		});
 	});
 

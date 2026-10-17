@@ -26,7 +26,7 @@ import {
 	RedisThrottlerStorage,
 	createAuthRateLimitStorage
 } from 'common/services';
-import { getClientIp } from 'common/utils';
+import { getClientIp, isInternalRequest } from 'common/utils';
 import { CommonModule } from 'common/common.module';
 import { UsersModule } from 'users/users.module';
 import { MediaModule } from 'media/media.module';
@@ -270,8 +270,19 @@ import { OriginBuilder } from 'common/misc';
 					}
 				],
 				storage,
-				getTracker: (req) => getClientIp(req, config.rateLimit.ipHeaders),
-				skipIf: () => !config.rateLimit.enabled
+				getTracker: (req) =>
+					getClientIp(
+						req,
+						config.rateLimit.ipHeaders,
+						config.rateLimit.proxyHops
+					),
+				// The web server fetches for every visitor from one address.
+				skipIf: (context) =>
+					!config.rateLimit.enabled ||
+					isInternalRequest(
+						context.switchToHttp().getRequest(),
+						config.rateLimit.internalKey
+					)
 			})
 		}),
 		ScheduleModule.forRoot(),
