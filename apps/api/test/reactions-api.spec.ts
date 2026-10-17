@@ -1,5 +1,5 @@
 import { AppFactory } from '@test/factory/app';
-import { TEST_ADMIN, TEST_USER } from '@test/factory/constants';
+import { SUPER_USER, TEST_ADMIN, TEST_USER } from '@test/factory/constants';
 import type { QuoteStatus, QuoteType } from '@qotm/db/enums';
 
 /** Like, favorite and recommend endpoints, and favorites sync, against the real test stack. */
@@ -89,6 +89,70 @@ describe('Reactions API', () => {
 				active: true,
 				count: 1
 			});
+		});
+
+		it('put an original in community, then forward to curation at three, never counting its author', async () => {
+			const ids = await Promise.all(
+				[TEST_ADMIN.email, SUPER_USER.email].map(
+					async (email) =>
+						(await app.db.user.findUniqueOrThrow({ where: { email } })).id
+				)
+			);
+			const statusOf = async (id: string) =>
+				(await app.db.quote.findUniqueOrThrow({ where: { id } })).status;
+
+			// Its author (the admin) and one other member recommended it; this member makes two others.
+			const q = await quote('PUBLISHED', 'ORIGINAL', {
+				contributorId: otherId
+			});
+			await app.db.recommendation.createMany({
+				data: ids.map((userId) => ({ userId, quoteId: q.id }))
+			});
+			await post(`/v1/quotes/${q.publicId}/recommendation`);
+			expect(await statusOf(q.id)).toBe('COMMUNITY_DISCOVERY');
+
+			// A former member's original: all three count.
+			const r = await quote('PUBLISHED', 'ORIGINAL');
+			await app.db.recommendation.createMany({
+				data: ids.map((userId) => ({ userId, quoteId: r.id }))
+			});
+			await post(`/v1/quotes/${r.publicId}/recommendation`);
+			expect(await statusOf(r.id)).toBe('CURATION_CANDIDATE');
+			const events = await app.db.quoteEvent.findMany({
+				where: { quoteId: r.id },
+				orderBy: { at: 'asc' }
+			});
+			expect(events.map((e) => [e.toStatus, e.actorId, e.note])).toEqual([
+				['COMMUNITY_DISCOVERY', null, 'Recommended by a member.'],
+				['CURATION_CANDIDATE', null, 'Recommended by 3 members.']
+			]);
+			// Taking one back never demotes it.
+			await del(`/v1/quotes/${r.publicId}/recommendation`);
+			expect(await statusOf(r.id)).toBe('CURATION_CANDIDATE');
+		});
+
+		it('do not put an original a curator kept out forward again', async () => {
+			const ids = await Promise.all(
+				[TEST_ADMIN.email, SUPER_USER.email].map(
+					async (email) =>
+						(await app.db.user.findUniqueOrThrow({ where: { email } })).id
+				)
+			);
+			const q = await quote('COMMUNITY_DISCOVERY', 'ORIGINAL');
+			await app.db.quoteEvent.create({
+				data: {
+					quoteId: q.id,
+					fromStatus: 'CURATION_REVIEW',
+					toStatus: 'CURATION_REVIEW'
+				}
+			});
+			await app.db.recommendation.createMany({
+				data: ids.map((userId) => ({ userId, quoteId: q.id }))
+			});
+			await post(`/v1/quotes/${q.publicId}/recommendation`);
+			expect(
+				(await app.db.quote.findUniqueOrThrow({ where: { id: q.id } })).status
+			).toBe('COMMUNITY_DISCOVERY');
 		});
 
 		it('stop once the original is curated, but can still be withdrawn', async () => {

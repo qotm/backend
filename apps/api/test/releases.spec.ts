@@ -1,5 +1,6 @@
 import { AppFactory } from '@test/factory/app';
 import {
+	openRelease,
 	publishRelease,
 	recordPreview,
 	setReleaseQuotes,
@@ -129,5 +130,44 @@ describe('Releases', () => {
 				where: { action: 'release.published', targetId: 'v2026.09.4' }
 			})
 		).toBe(1);
+	});
+
+	it('renumbers a release left open into a new month, dropping its old preview', async () => {
+		await app.db.release.deleteMany({ where: { state: { not: 'PUBLISHED' } } });
+		const october = await openRelease(
+			app.db,
+			1,
+			new Date('2026-10-30T12:00:00Z')
+		);
+		expect(october.version).toMatch(/^v2026\.10\.\d+$/);
+		await app.db.release.update({
+			where: { id: october.id },
+			data: { ...ARTIFACTS, state: 'PREVIEW', previewBuiltAt: new Date() }
+		});
+		// Still October: the same release, preview kept.
+		const again = await openRelease(
+			app.db,
+			1,
+			new Date('2026-10-31T12:00:00Z')
+		);
+		expect(again).toMatchObject({
+			id: october.id,
+			version: october.version,
+			state: 'PREVIEW'
+		});
+
+		const november = await openRelease(
+			app.db,
+			1,
+			new Date('2026-11-02T09:00:00Z')
+		);
+		expect(november).toMatchObject({
+			id: october.id,
+			version: 'v2026.11.1',
+			state: 'DRAFT',
+			sha256: null,
+			artifactKey: null,
+			previewBuiltAt: null
+		});
 	});
 });

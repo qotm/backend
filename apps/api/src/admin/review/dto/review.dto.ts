@@ -90,6 +90,12 @@ export const CurationDecision = z
 	.meta({ id: 'CurationDecision' });
 export type CurationDecision = z.output<typeof CurationDecision>;
 
+/** A curator nominating a community original for curation; the note is optional. */
+export const Nomination = z
+	.object({ note: note.optional() })
+	.meta({ id: 'Nomination' });
+export type Nomination = z.output<typeof Nomination>;
+
 export const ReportQueueQuery = QueueQuery.extend({
 	status: z.enum(['open', 'resolved']).default('open'),
 	/** Only the reports on this quote (its public id), as the admin quote drawer asks. */

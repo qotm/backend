@@ -18,7 +18,9 @@ function fakeDb({ changed = 1, type = 'ORIGINAL' as string | null } = {}) {
 		},
 		$queryRaw: vi.fn(async () => (type ? [{ type }] : [])),
 		quote: {
-			update: vi.fn(async ({ data }) => ({ [Object.keys(data)[0]]: 7 }))
+			update: vi.fn(async ({ data }) => ({ [Object.keys(data)[0]]: 7 })),
+			// promoteOriginal's read: nothing to promote here (the e2e suite covers it).
+			findUnique: vi.fn(async () => null)
 		}
 	};
 	const db = { $transaction: vi.fn((fn) => fn(tx)) };

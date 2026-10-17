@@ -158,8 +158,11 @@ export function publishRelease(
 export const VERSION_PATTERN = /^v(\d{4})\.(\d{2})\.(\d+)$/;
 
 /** The next version for `now`'s month (UTC), given the versions so far. */
+const monthOf = (now: Date) =>
+	`v${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, '0')}.`;
+
 export function nextVersion(existing: string[], now: Date) {
-	const month = `v${now.getUTCFullYear()}.${String(now.getUTCMonth() + 1).padStart(2, '0')}.`;
+	const month = monthOf(now);
 	const used = existing
 		.filter((v) => v.startsWith(month))
 		.map((v) => Number(VERSION_PATTERN.exec(v)?.[3] ?? 0));
@@ -170,6 +173,10 @@ export function nextVersion(existing: string[], now: Date) {
  * The release the next preview builds: the one not yet published (there is
  * at most one), or a new draft with the next version. Taken under an
  * advisory lock, so two admins asking at once get the same release.
+ *
+ * One left open across a month is renumbered for the month of this build
+ * (v2026.10.2 built in November becomes v2026.11.1), and its old preview is
+ * dropped: what is published carries the month it was built in.
  */
 export function openRelease(db: Db, schemaVersion: number, now = new Date()) {
 	return db.$transaction(async (tx) => {
@@ -178,8 +185,25 @@ export function openRelease(db: Db, schemaVersion: number, now = new Date()) {
 			where: { state: UNPUBLISHED },
 			orderBy: { createdAt: 'desc' }
 		});
-		if (open) return open;
 		const versions = await tx.release.findMany({ select: { version: true } });
+		if (open) {
+			if (open.version.startsWith(monthOf(now))) return open;
+			return tx.release.update({
+				where: { id: open.id },
+				data: {
+					version: nextVersion(
+						versions.map((r) => r.version).filter((v) => v !== open.version),
+						now
+					),
+					state: ReleaseState.DRAFT,
+					sizeBytes: null,
+					sha256: null,
+					artifactKey: null,
+					manifestKey: null,
+					previewBuiltAt: null
+				}
+			});
+		}
 		return tx.release.create({
 			data: {
 				version: nextVersion(

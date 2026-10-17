@@ -67,6 +67,13 @@ export const QuoteEntity = QuoteCardEntity.extend({
 	verifiedAt: dateTime().nullable(),
 	/** Each status the quote reached, with its date (LifecycleSteps). */
 	lifecycle: z.array(z.object({ status: z.enum(QuoteStatus), at: dateTime() })),
+	/** Each wording correction, oldest first: the wording before it, and when (the terms promise both are public). */
+	corrections: z.array(
+		z.object({
+			before: ref('Simplicity is prerequisit for reliability.'),
+			at: dateTime()
+		})
+	),
 	/** Published releases it shipped in, oldest first. */
 	releases: z.array(ref('v2026.08.3'))
 }).meta({ id: 'QuoteEntity' });

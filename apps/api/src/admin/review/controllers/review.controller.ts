@@ -20,6 +20,7 @@ import { QuotePermissions, ReportPermissions } from '../decorators';
 import {
 	CorrectQuote,
 	CurationDecision,
+	Nomination,
 	ReportDecision,
 	ReportQueueQuery,
 	ModerationDecision,
@@ -37,7 +38,8 @@ import { ReviewService } from '../services';
 /** The acting reviewer, as the audit log records them. */
 const actorOf = ({ user }: UserSession) => ({
 	id: user.id,
-	handle: (user as typeof user & { handle: string }).handle
+	handle: (user as typeof user & { handle: string }).handle,
+	role: (user as typeof user & { role?: string | null }).role ?? null
 });
 
 @ApiTags('Admin · Submissions')
@@ -204,6 +206,29 @@ export class AdminCurationController {
 		@Session() session: UserSession
 	) {
 		return this.service.curate(actorOf(session), id, body);
+	}
+
+	@Post('quotes/:id/nomination')
+	@HttpCode(200)
+	@Op(
+		'admin/quotes/:id/nomination',
+		'/v1/admin/quotes/:id/nomination',
+		'Nominate a published community original for curation, whatever its recommends'
+	)
+	@IdParam()
+	@Returns(QuoteEntity)
+	@ApiNotFoundResponse()
+	@ApiConflictResponse({
+		description:
+			'Not a published original, already in curation, or your own submission'
+	})
+	@QuotePermissions('curate')
+	nominate(
+		@Param('id') id: string,
+		@Body({ schema: Nomination }) body: Nomination,
+		@Session() session: UserSession
+	) {
+		return this.service.nominate(actorOf(session), id, body);
 	}
 }
 

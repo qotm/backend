@@ -17,6 +17,8 @@ import { CARD, toCard } from 'quotes/cards';
 import { PUBLIC_ID_PATTERN } from 'quotes/public-id';
 import { QuotesService } from 'quotes/services';
 import { moveQuote } from 'quotes/transition';
+import { NominationRefused, nominateOriginal } from 'quotes/promotion';
+import { hasRole } from 'lib/access';
 import {
 	CURATION_CHECKLIST,
 	reportRef,
@@ -33,6 +35,7 @@ import {
 import type {
 	CorrectQuote,
 	CurationDecision,
+	Nomination,
 	ReportDecision,
 	ReportQueueQuery,
 	ModerationDecision,
@@ -48,7 +51,8 @@ import type {
 	SubmissionMatchesEntity
 } from '../entity';
 
-type Actor = NonNullable<AuditEntry['actor']>;
+/** The reviewer acting: who the audit log records, and their role (self-review, QOT-114). */
+type Actor = NonNullable<AuditEntry['actor']> & { role?: string | null };
 type Tx = Prisma.TransactionClient;
 
 /**
@@ -263,6 +267,7 @@ export class ReviewService {
 		const rule = VERIFICATION[input.decision];
 		await this.db.$transaction(async (tx) => {
 			let quote = await this.find(publicId, tx);
+			this.notOwn(actor, quote);
 			if (quote.type !== QuoteType.CANONICAL) {
 				throw new ConflictException('Only canonical quotes are verified');
 			}
@@ -297,6 +302,7 @@ export class ReviewService {
 		const rule = MODERATION[input.decision];
 		await this.db.$transaction(async (tx) => {
 			const quote = await this.find(publicId, tx);
+			this.notOwn(actor, quote);
 			if (
 				quote.type !== QuoteType.ORIGINAL ||
 				quote.status !== S.ORIGINALITY_CHECK
@@ -334,6 +340,7 @@ export class ReviewService {
 	async curate(actor: Actor, publicId: string, input: CurationDecision) {
 		await this.db.$transaction(async (tx) => {
 			let quote = await this.find(publicId, tx);
+			this.notOwn(actor, quote);
 			const entry =
 				(quote.type === QuoteType.CANONICAL && quote.status === S.VERIFIED) ||
 				(quote.type === QuoteType.ORIGINAL &&
@@ -382,6 +389,31 @@ export class ReviewService {
 				: ReviewOutcome.KEEP_OUT,
 			input.note
 		);
+		return this.quotes.findOne(publicId, actor.id, { staff: true });
+	}
+
+	/**
+	 * A curator nominates a published original for curation, whatever its
+	 * recommends: it becomes a curation candidate (`nominateOriginal`).
+	 */
+	async nominate(actor: Actor, publicId: string, input: Nomination) {
+		await this.db.$transaction(async (tx) => {
+			const quote = await this.find(publicId, tx);
+			this.notOwn(actor, quote);
+			try {
+				await nominateOriginal(tx, quote, actor.id, input.note ?? null);
+			} catch (error) {
+				if (error instanceof NominationRefused)
+					throw new ConflictException(error.message);
+				throw error;
+			}
+			await recordAudit(tx, {
+				actor,
+				action: 'quote.nominated',
+				target: { type: 'quote', id: quote.publicId },
+				note: input.note ?? null
+			});
+		}, ISOLATION);
 		return this.quotes.findOne(publicId, actor.id, { staff: true });
 	}
 
@@ -487,6 +519,7 @@ export class ReviewService {
 				throw new ConflictException(`${ref} is already resolved`);
 			}
 			const quote = report.quote;
+			this.notOwn(actor, quote);
 			const now = new Date();
 			const record = (outcome: ReviewOutcome) =>
 				tx.reviewDecision.create({
@@ -626,6 +659,7 @@ export class ReviewService {
 			const quote = await this.find(publicId, tx);
 			if (quote.type === QuoteType.PRIVATE)
 				throw new NotFoundException('Quote not found');
+			this.notOwn(actor, quote);
 
 			const data: Prisma.QuoteUncheckedUpdateInput = {};
 			if (input.author !== undefined) {
@@ -767,6 +801,20 @@ export class ReviewService {
 			target: { type: 'quote', id: quote.publicId },
 			note: decision.note ?? null
 		});
+	}
+
+	/**
+	 * QOT-114 (decided 2026-10-17): verifiers and moderators don't decide on
+	 * their own submissions. Admins may, while there is one reviewer.
+	 */
+	private notOwn(actor: Actor, quote: { contributorId: string | null }) {
+		if (quote.contributorId !== actor.id) return;
+		if (
+			hasRole(actor.role ?? null, 'admin') ||
+			hasRole(actor.role ?? null, 'superuser')
+		)
+			return;
+		throw new ConflictException('Someone else must review your own submission');
 	}
 
 	private async find(publicId: string, db: Tx | PrismaService = this.db) {

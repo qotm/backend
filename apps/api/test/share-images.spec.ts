@@ -1,5 +1,7 @@
 import {
 	DeleteObjectCommand,
+	DeleteObjectsCommand,
+	ListObjectsV2Command,
 	PutObjectCommand,
 	S3Client
 } from '@aws-sdk/client-s3';
@@ -86,6 +88,31 @@ describe('Share images', () => {
 			credentials: { accessKeyId, secretAccessKey },
 			forcePathStyle: true
 		});
+		// The bucket is shared with development, whose worker draws the site's
+		// and the seeded authors' cards, and a run that died before afterAll
+		// leaves its own: start from none of the images this spec counts on.
+		for (const prefix of [
+			'share/q_sh',
+			'og/site-',
+			'og/authors/dijkstra-',
+			'og/topics/og-debugging-'
+		]) {
+			const listed = await s3.send(
+				new ListObjectsV2Command({
+					Bucket: app.config.s3.bucket,
+					Prefix: prefix
+				})
+			);
+			const keys = (listed.Contents ?? []).map((o) => ({ Key: o.Key! }));
+			if (keys.length) {
+				await s3.send(
+					new DeleteObjectsCommand({
+						Bucket: app.config.s3.bucket,
+						Delete: { Objects: keys }
+					})
+				);
+			}
+		}
 	});
 
 	afterEach(async () => {

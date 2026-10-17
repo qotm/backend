@@ -51,6 +51,11 @@ const DETAIL = {
 	source: { select: { title: true, year: true, kind: true, url: true } },
 	verifier: { select: { handle: true } },
 	events: { select: { toStatus: true, at: true }, orderBy: { at: 'asc' } },
+	// The earlier wordings and when they changed; the staff note stays in the audit log.
+	corrections: {
+		select: { oldText: true, createdAt: true },
+		orderBy: { createdAt: 'asc' }
+	},
 	releases: {
 		where: { release: { state: ReleaseState.PUBLISHED } },
 		select: { release: { select: { version: true, publishedAt: true } } }
@@ -163,6 +168,10 @@ export class QuotesService {
 			verifier: row.verifier,
 			verifiedAt: row.verifiedAt,
 			lifecycle: row.events.map((e) => ({ status: e.toStatus, at: e.at })),
+			corrections: row.corrections.map((c) => ({
+				before: c.oldText,
+				at: c.createdAt
+			})),
 			releases: row.releases
 				.map((r) => r.release)
 				.sort((a, b) => +a.publishedAt! - +b.publishedAt!)

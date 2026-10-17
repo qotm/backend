@@ -9,6 +9,7 @@ export const AUDIT_ACTIONS = {
 	'quote.evidence_requested': 'Asked for evidence',
 	'quote.rejected': 'Rejected quote',
 	'quote.published': 'Published original',
+	'quote.nominated': 'Nominated for curation',
 	'quote.curated': 'Curated quote',
 	'quote.kept_out': 'Kept out of the dataset',
 	'quote.disputed': 'Disputed quote',

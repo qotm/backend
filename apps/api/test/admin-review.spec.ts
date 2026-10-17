@@ -26,7 +26,7 @@ describe('Admin review queues', () => {
 	async function quote(
 		type: QuoteType,
 		status: QuoteStatus,
-		extra: { authorId?: string; text?: string } = {}
+		extra: { authorId?: string; text?: string; contributorId?: string } = {}
 	) {
 		const publicId = `q_rv${String(++n).padStart(4, '0')}`;
 		return app.db.quote.create({
@@ -37,7 +37,7 @@ describe('Admin review queues', () => {
 				text: extra.text ?? `Review quote ${publicId}`,
 				attribution: 'Edsger W. Dijkstra',
 				authorId: extra.authorId ?? null,
-				contributorId: memberId,
+				contributorId: extra.contributorId ?? memberId,
 				// Each quote entered its queue a day after the previous one.
 				events: {
 					create: { toStatus: status, at: new Date(Date.UTC(2026, 8, n)) }
@@ -226,6 +226,50 @@ describe('Admin review queues', () => {
 			}
 		});
 
+		it('is not a verifier’s own submission to decide; an admin may decide theirs', async () => {
+			const author = await app.db.author.findUniqueOrThrow({
+				where: { slug: 'dijkstra' }
+			});
+			const idOf = async (email: string) =>
+				(await app.db.user.findUniqueOrThrow({ where: { email } })).id;
+			const own = await quote('CANONICAL', 'UNDER_REVIEW', {
+				authorId: author.id,
+				contributorId: await idOf('verifier@example.com')
+			});
+			const refused = await as('verifier').post(
+				`/v1/admin/quotes/${own.publicId}/verification`,
+				{ decision: 'verify', note: 'Mine, checked' }
+			);
+			expect(refused.status).toBe(409);
+			expect(refused.body.message).toBe(
+				'Someone else must review your own submission'
+			);
+			const fixed = await as('verifier').patch(
+				`/v1/admin/quotes/${own.publicId}`,
+				{
+					text: 'Changed by its own submitter.',
+					note: 'Mine'
+				}
+			);
+			expect(fixed.status).toBe(409);
+
+			const admins = await quote('CANONICAL', 'UNDER_REVIEW', {
+				authorId: author.id,
+				contributorId: await idOf(TEST_ADMIN.email)
+			});
+			expect(
+				(
+					await as('admin').post(
+						`/v1/admin/quotes/${admins.publicId}/verification`,
+						{
+							decision: 'verify',
+							note: 'Checked against the source'
+						}
+					)
+				).status
+			).toBe(200);
+		});
+
 		it('lets exactly one of two racing decisions through, with nothing half-written', async () => {
 			const author = await app.db.author.findUniqueOrThrow({
 				where: { slug: 'dijkstra' }
@@ -325,6 +369,24 @@ describe('Admin review queues', () => {
 					where: { action: 'quote.corrected', targetId: q.publicId }
 				})
 			).toBe(1);
+		});
+
+		it('shows the earlier wording and its date on the public page, never the note', async () => {
+			const q = await quote('CANONICAL', 'VERIFIED', {
+				text: 'Simplicity is prerequisit for reliability.'
+			});
+			await as('verifier').patch(`/v1/admin/quotes/${q.publicId}`, {
+				text: 'Simplicity is prerequisite for reliability.',
+				note: 'Typo in prerequisite'
+			});
+			const page = await app.request.get(`/v1/quotes/${q.publicId}`);
+			expect(page.body.corrections).toEqual([
+				{
+					before: 'Simplicity is prerequisit for reliability.',
+					at: expect.any(String)
+				}
+			]);
+			expect(JSON.stringify(page.body)).not.toContain('Typo in prerequisite');
 		});
 
 		it('is a verifier’s or admin’s, and 404s an unknown author', async () => {
@@ -465,5 +527,64 @@ describe('Admin review queues', () => {
 			'/v1/admin/verification?limit=1&page=1&focus=q_notqueued'
 		);
 		expect(away.body.currentPage).toBe(1);
+	});
+
+	describe('nominating an original for curation', () => {
+		it('makes a published original a curation candidate, step by step, and audits it', async () => {
+			const q = await quote('ORIGINAL', 'PUBLISHED');
+			const res = await as('admin').post(
+				`/v1/admin/quotes/${q.publicId}/nomination`,
+				{
+					note: 'Worth a look'
+				}
+			);
+			expect(res.status).toBe(200);
+			expect(res.body.status).toBe('CURATION_CANDIDATE');
+			const events = await app.db.quoteEvent.findMany({
+				where: { quoteId: q.id },
+				orderBy: { at: 'asc' },
+				select: { toStatus: true }
+			});
+			expect(events.map((e) => e.toStatus)).toEqual([
+				'PUBLISHED',
+				'COMMUNITY_DISCOVERY',
+				'CURATION_CANDIDATE'
+			]);
+			expect(
+				await app.db.auditLog.count({
+					where: { action: 'quote.nominated', targetId: q.publicId }
+				})
+			).toBe(1);
+			// Already a candidate: nothing more to nominate.
+			expect(
+				(
+					await as('admin').post(
+						`/v1/admin/quotes/${q.publicId}/nomination`,
+						{}
+					)
+				).status
+			).toBe(409);
+		});
+
+		it('refuses a canonical quote, and is a curator’s', async () => {
+			const canonical = await quote('CANONICAL', 'VERIFIED');
+			expect(
+				(
+					await as('admin').post(
+						`/v1/admin/quotes/${canonical.publicId}/nomination`,
+						{}
+					)
+				).status
+			).toBe(409);
+			const original = await quote('ORIGINAL', 'PUBLISHED');
+			expect(
+				(
+					await as('verifier').post(
+						`/v1/admin/quotes/${original.publicId}/nomination`,
+						{}
+					)
+				).status
+			).toBe(403);
+		});
 	});
 });

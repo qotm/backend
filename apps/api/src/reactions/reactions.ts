@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Prisma, type PrismaClient } from '@qotm/db/client';
 import { QuoteType } from '@qotm/db/enums';
+import { promoteOriginal } from 'quotes/promotion';
 
 export type ReactionKind = 'like' | 'favorite' | 'recommend';
 
@@ -54,6 +55,7 @@ interface Key {
  * subtracts nothing.
  *
  * Recommendations are only for community originals; anything else is a 400.
+ * A new one may move the original towards curation (`promoteOriginal`).
  * Whether the viewer may react at all (signed in, quote visible, recommend
  * only before curation) is the caller's check.
  */
@@ -79,6 +81,10 @@ export function setReaction(
 		const { count: changed } = on
 			? await insert(tx, kind, key)
 			: await remove(tx, kind, key);
+
+		if (kind === 'recommend' && on && changed) {
+			await promoteOriginal(tx, key.quoteId);
+		}
 
 		const counter = COUNTER[kind];
 		const updated = await tx.quote.update({
