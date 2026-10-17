@@ -119,7 +119,9 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
   (the container check). `/health/queues` is for an uptime monitor: the
   worker's Redis heartbeat and each queue (`QueuesHealthIndicator`, which
   lists the queues: add a new one there); 503 when the heartbeat stops or a
-  job has waited 10 minutes with nothing finishing.
+  job has waited 10 minutes with nothing finishing. `QueuesHealthWatch` runs
+  the same checks every minute and logs `Queues unhealthy` (an error with
+  `healthCheck: 'queues'`) while one is down; OpenObserve alerts on it.
 
 ## Skills
 

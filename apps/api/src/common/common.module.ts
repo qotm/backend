@@ -21,6 +21,7 @@ import {
 	API_QUEUES,
 	PrismaHealthIndicator,
 	QueuesHealthIndicator,
+	QueuesHealthWatch,
 	WORKER_QUEUES
 } from './misc';
 import Config from './services/config.service';
@@ -60,7 +61,8 @@ import Config from './services/config.service';
 		MailProcessor,
 		RedisThrottlerStorage,
 		PrismaHealthIndicator,
-		QueuesHealthIndicator
+		QueuesHealthIndicator,
+		QueuesHealthWatch
 	],
 	exports: [
 		CustomConfigService,
