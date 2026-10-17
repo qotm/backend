@@ -3,8 +3,17 @@ import { ApiTags } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import { Op, Returns } from 'common/decorators';
 import { QuotePermissions } from 'admin/review/decorators';
-import { AdminQuoteFilters, AdminQuoteQuery } from '../dto';
-import { AdminQuoteListEntity, ExportJobEntity } from '../entity';
+import {
+	AdminQuoteFilters,
+	AdminQuoteQuery,
+	BulkTopic,
+	BulkWithdraw
+} from '../dto';
+import {
+	AdminQuoteListEntity,
+	BulkResultEntity,
+	ExportJobEntity
+} from '../entity';
 import { AdminQuotesService } from '../services';
 
 /** The acting admin, as the audit log and the export record them. */
@@ -44,5 +53,35 @@ export class AdminQuotesController {
 		@Session() session: UserSession
 	) {
 		return this.service.export(filters, actorOf(session));
+	}
+
+	@Post('bulk/withdraw')
+	@HttpCode(200)
+	@Op(
+		'admin/quotes/bulk/withdraw',
+		'/v1/admin/quotes/bulk/withdraw',
+		'Withdraw up to 100 quotes, each with the note, its own history step and audit entry; skipped ones say why'
+	)
+	@Returns(BulkResultEntity)
+	withdraw(
+		@Body({ schema: BulkWithdraw }) body: BulkWithdraw,
+		@Session() session: UserSession
+	) {
+		return this.service.withdraw(body, actorOf(session));
+	}
+
+	@Post('bulk/topic')
+	@HttpCode(200)
+	@Op(
+		'admin/quotes/bulk/topic',
+		'/v1/admin/quotes/bulk/topic',
+		"Add a topic to up to 100 quotes, or take it off them (never a quote's only topic)"
+	)
+	@Returns(BulkResultEntity)
+	topic(
+		@Body({ schema: BulkTopic }) body: BulkTopic,
+		@Session() session: UserSession
+	) {
+		return this.service.topic(body, actorOf(session));
 	}
 }

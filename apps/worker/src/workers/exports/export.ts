@@ -11,6 +11,8 @@ export interface AdminQuoteFilters {
 	q?: string;
 	type?: 'canonical' | 'original';
 	state?: string;
+	/** A selection: exactly these quotes. */
+	ids?: string[];
 }
 
 /** As the API enqueues it (`apps/api/src/exports/jobs.ts`, ExportQuotesJob). */
@@ -35,6 +37,8 @@ export function adminQuoteWhere(f: AdminQuoteFilters): Prisma.QuoteWhereInput {
 					? 'ORIGINAL'
 					: { not: 'PRIVATE' }
 	};
+	// A selection: exactly these, whatever else is set.
+	if (f.ids) return { ...where, publicId: { in: f.ids } };
 	if (f.state)
 		where.status = f.state as NonNullable<Prisma.QuoteWhereInput['status']>;
 	if (f.q) {

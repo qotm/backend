@@ -171,4 +171,136 @@ describe('Admin quotes', () => {
 			opts: { attempts: 3, backoff: { type: 'exponential', delay: 10_000 } }
 		});
 	});
+
+	describe('bulk actions', () => {
+		const post = (path: string, body: object, cookie = admin) =>
+			app.request
+				.post(`/v1/admin/quotes/bulk/${path}`)
+				.set('Cookie', cookie)
+				.send(body);
+
+		it('withdraws each quote with the note, a history step and an audit entry, skipping what it cannot', async () => {
+			const a = await quote('VERIFIED');
+			const b = await quote('DISPUTED');
+			const gone = await quote('WITHDRAWN');
+			const res = await post('withdraw', {
+				ids: [a.publicId, b.publicId, gone.publicId, 'q_nosuch1'],
+				note: 'Duplicates of quotes already in the dataset'
+			});
+			expect(res.status).toBe(200);
+			expect(res.body).toEqual({
+				done: [a.publicId, b.publicId],
+				unchanged: [],
+				skipped: [
+					{ id: gone.publicId, reason: 'already withdrawn' },
+					{ id: 'q_nosuch1', reason: 'not found' }
+				]
+			});
+			for (const q of [a, b]) {
+				const row = await app.db.quote.findUniqueOrThrow({
+					where: { id: q.id },
+					include: { events: { orderBy: { at: 'asc' } } }
+				});
+				expect(row.status).toBe('WITHDRAWN');
+				expect(row.events[row.events.length - 1]).toMatchObject({
+					toStatus: 'WITHDRAWN',
+					note: 'Duplicates of quotes already in the dataset'
+				});
+				expect(
+					await app.db.auditLog.count({
+						where: { action: 'quote.withdrawn', targetId: q.publicId }
+					})
+				).toBe(1);
+			}
+			expect(
+				(await post('withdraw', { ids: [a.publicId], note: '' })).status
+			).toBe(400);
+		});
+
+		it('adds a topic where it is missing and takes it off, never a quote’s only one', async () => {
+			const [complexity, simplicity] = await Promise.all(
+				['complexity', 'simplicity'].map((slug) =>
+					app.db.topic.upsert({
+						where: { slug },
+						update: {},
+						create: { slug, name: slug }
+					})
+				)
+			);
+			const has = await quote('VERIFIED');
+			const lacks = await quote('VERIFIED');
+			await app.db.quoteTopic.createMany({
+				data: [
+					{ quoteId: has.id, topicId: complexity.id },
+					{ quoteId: has.id, topicId: simplicity.id },
+					{ quoteId: lacks.id, topicId: simplicity.id }
+				]
+			});
+			const added = await post('topic', {
+				ids: [has.publicId, lacks.publicId],
+				topic: 'complexity',
+				action: 'add'
+			});
+			expect(added.body).toEqual({
+				done: [lacks.publicId],
+				unchanged: [has.publicId],
+				skipped: []
+			});
+			expect(
+				await app.db.auditLog.count({
+					where: {
+						action: 'quote.topic_added',
+						targetId: lacks.publicId,
+						note: 'complexity'
+					}
+				})
+			).toBe(1);
+
+			// Removing simplicity: `lacks` now has complexity too, `has` keeps complexity.
+			const removed = await post('topic', {
+				ids: [has.publicId, lacks.publicId],
+				topic: 'simplicity',
+				action: 'remove'
+			});
+			expect(removed.body.done.sort()).toEqual(
+				[has.publicId, lacks.publicId].sort()
+			);
+			const only = await post('topic', {
+				ids: [lacks.publicId],
+				topic: 'complexity',
+				action: 'remove'
+			});
+			expect(only.body.skipped).toEqual([
+				{ id: lacks.publicId, reason: 'its only topic' }
+			]);
+			expect(
+				(
+					await post('topic', {
+						ids: [has.publicId],
+						topic: 'nope',
+						action: 'add'
+					})
+				).status
+			).toBe(409);
+		});
+
+		it('is for admins only', async () => {
+			const member = (await app.signIn(TEST_USER.email, TEST_USER.password))
+				.cookie!;
+			const q = await quote('VERIFIED');
+			expect(
+				(await post('withdraw', { ids: [q.publicId], note: 'x' }, member))
+					.status
+			).toBe(403);
+			expect(
+				(
+					await post(
+						'topic',
+						{ ids: [q.publicId], topic: 'complexity', action: 'add' },
+						member
+					)
+				).status
+			).toBe(403);
+		});
+	});
 });

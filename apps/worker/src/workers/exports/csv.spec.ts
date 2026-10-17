@@ -26,6 +26,10 @@ describe('csvField', () => {
 describe('adminQuoteWhere', () => {
 	it('matches the API’s filter', () => {
 		expect(adminQuoteWhere({})).toEqual({ type: { not: 'PRIVATE' } });
+		expect(adminQuoteWhere({ state: 'VERIFIED', ids: ['q_8f2k1c'] })).toEqual({
+			type: { not: 'PRIVATE' },
+			publicId: { in: ['q_8f2k1c'] }
+		});
 		expect(adminQuoteWhere({ type: 'canonical', state: 'CURATED' })).toEqual({
 			type: 'CANONICAL',
 			status: 'CURATED'

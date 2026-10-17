@@ -30,4 +30,17 @@ describe('adminQuoteWhere', () => {
 		]);
 		expect(adminQuoteWhere({ q: 'knuth' }).OR).toHaveLength(3);
 	});
+
+	it('narrows to a selection, whatever else is set', () => {
+		expect(
+			adminQuoteWhere({
+				q: 'dijkstra',
+				state: 'VERIFIED',
+				ids: ['q_8f2k1c', 'q_5d3a8w']
+			})
+		).toEqual({
+			type: { not: 'PRIVATE' },
+			publicId: { in: ['q_8f2k1c', 'q_5d3a8w'] }
+		});
+	});
 });

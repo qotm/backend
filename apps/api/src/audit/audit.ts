@@ -16,6 +16,8 @@ export const AUDIT_ACTIONS = {
 	'quote.restored': 'Restored quote',
 	'quote.withdrawn': 'Withdrew quote',
 	'quote.corrected': 'Corrected wording',
+	'quote.topic_added': 'Added a topic',
+	'quote.topic_removed': 'Removed a topic',
 	'report.resolved': 'Resolved report',
 	'release.preview_built': 'Built release preview',
 	'release.published': 'Published release',

@@ -13,6 +13,8 @@ export const AdminQuoteRowEntity = z
 		status: z.enum(QuoteStatus),
 		/** The newest published release it shipped in. */
 		lastRelease: z.string().nullable().meta({ example: 'v2026.08.3' }),
+		/** Its topics' slugs (a bulk topic change counts them). */
+		topics: z.array(z.string()).meta({ example: ['simplicity'] }),
 		createdAt: dateTime()
 	})
 	.meta({ id: 'AdminQuoteRowEntity' });
@@ -39,3 +41,21 @@ export const ExportJobEntity = z
 	.object({ id: z.string().meta({ example: 'export-3f9c…' }) })
 	.meta({ id: 'ExportJobEntity' });
 export type ExportJobEntity = z.input<typeof ExportJobEntity>;
+
+/**
+ * What a bulk action did: `done` changed, `unchanged` needed nothing (the
+ * topic was already there, or not), `skipped` could not be changed, with why.
+ */
+export const BulkResultEntity = z
+	.object({
+		done: z.array(z.string()).meta({ example: ['q_8f2k1c'] }),
+		unchanged: z.array(z.string()),
+		skipped: z.array(
+			z.object({
+				id: z.string().meta({ example: 'q_5d3a8w' }),
+				reason: z.string().meta({ example: 'already withdrawn' })
+			})
+		)
+	})
+	.meta({ id: 'BulkResultEntity' });
+export type BulkResultEntity = z.input<typeof BulkResultEntity>;

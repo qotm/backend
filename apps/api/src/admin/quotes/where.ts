@@ -17,6 +17,8 @@ export function adminQuoteWhere(f: AdminQuoteFilters): Prisma.QuoteWhereInput {
 					? QuoteType.ORIGINAL
 					: { not: QuoteType.PRIVATE }
 	};
+	// A selection: exactly these, whatever else is set.
+	if (f.ids) return { ...where, publicId: { in: f.ids } };
 	if (f.state) where.status = f.state;
 	if (f.q) {
 		const text = { contains: f.q, mode: 'insensitive' } as const;

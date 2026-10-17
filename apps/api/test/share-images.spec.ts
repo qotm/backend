@@ -336,7 +336,9 @@ describe('Share images', () => {
 			(j) => j.data.variant === 'page' && j.data.card.kind === 'author'
 		);
 		expect(job!.data).toMatchObject({
-			key: expect.stringMatching(/^test\/og\/authors\/dijkstra-[0-9a-f]{12}\.png$/),
+			key: expect.stringMatching(
+				/^test\/og\/authors\/dijkstra-[0-9a-f]{12}\.png$/
+			),
 			card: {
 				path: '/authors/dijkstra',
 				eyebrow: 'Author',
