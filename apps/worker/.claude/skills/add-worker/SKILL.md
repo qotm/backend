@@ -53,7 +53,9 @@ The example consumer is `src/workers/example/index.ts`; copy its shape.
 3. **Register it**: re-export from `src/workers/index.ts`
    (`export * from './reports/index.js';`) and add it to `queueWorkers` in
    `src/index.ts`. That list is what starts it and what closes it on shutdown;
-   a worker missing from it never runs.
+   a worker missing from it never runs. The list also feeds the heartbeat;
+   add the queue's name to `WORKER_QUEUES` in the API's
+   `src/common/misc/queues.indicator.ts` so `/health/queues` watches it.
 
 4. **Check**: `yarn typecheck && yarn lint`, then run `yarn dev` against the
    API's Redis and enqueue a job from the API to see it processed.

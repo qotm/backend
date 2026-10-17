@@ -22,7 +22,9 @@ yarn build && yarn lint && yarn format
 ```
 
 Tests run against their own Postgres and Redis (root `compose.test.yml`, ports
-5499 / 6399, `.env.test`):
+5461 / 6361, `.env.test`). Run them through these scripts, never a bare
+`vitest run`: that also starts the e2e project with `.env`, and e2e wipes its
+database (`AppFactory.init` now refuses unless `APP_ENV=test`).
 
 ```sh
 yarn test:dc:reinstall       # once: test stack up, schema pushed, seeded
@@ -113,7 +115,11 @@ yarn test:e2e                # e2e: test/**/*.spec.ts, serial, real app
   checked at boot and hourly (`og-backfill`) for whatever those missed, behind
   any render someone waits for.
 - **Observability**: traces and logs go out over OTLP once `OPENOBSERVE_*`
-  or `OTEL_EXPORTER_OTLP_ENDPOINT` is set; `/health` checks the database.
+  or `OTEL_EXPORTER_OTLP_ENDPOINT` is set; `/health` checks the database
+  (the container check). `/health/queues` is for an uptime monitor: the
+  worker's Redis heartbeat and each queue (`QueuesHealthIndicator`, which
+  lists the queues: add a new one there); 503 when the heartbeat stops or a
+  job has waited 10 minutes with nothing finishing.
 
 ## Skills
 

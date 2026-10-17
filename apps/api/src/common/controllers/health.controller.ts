@@ -11,7 +11,7 @@ import { SkipThrottle } from '@nestjs/throttler';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import { Op } from 'common/decorators';
 import { CustomConfigService } from '../services';
-import { PrismaHealthIndicator } from '../misc';
+import { PrismaHealthIndicator, QueuesHealthIndicator } from '../misc';
 
 const MB = 1024 * 1024;
 
@@ -27,7 +27,8 @@ export class HealthController {
 		private config: CustomConfigService,
 		private prisma: PrismaHealthIndicator,
 		private disk: DiskHealthIndicator,
-		private memory: MemoryHealthIndicator
+		private memory: MemoryHealthIndicator,
+		private queues: QueuesHealthIndicator
 	) {}
 
 	@Get()
@@ -48,5 +49,19 @@ export class HealthController {
 					path: diskPath
 				})
 		]);
+	}
+
+	/**
+	 * For an uptime monitor, not the container check: whether the worker is
+	 * alive and every queue is being consumed (QueuesHealthIndicator). 503
+	 * when a queue has stopped, with which and why.
+	 */
+	@Get('queues')
+	@ApiExcludeEndpoint()
+	@Op('health-queues', '/health/queues', 'Check the worker and the queues')
+	@HealthCheck()
+	@AllowAnonymous()
+	async queuesCheck() {
+		return this.health.check(this.queues.checks());
 	}
 }

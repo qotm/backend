@@ -1,5 +1,6 @@
 import logger from '#app/logger.js';
 import * as Workers from '#app/workers/index.js';
+import { startHeartbeat } from '#utils/heartbeat.js';
 
 // Everything still running when a shutdown starts: each entry settles once its
 // worker has stopped taking new work and finished what it had.
@@ -17,6 +18,7 @@ const queueWorkers = [
 	Workers.csvExports
 ];
 for (const worker of queueWorkers) void worker.run();
+const heartbeat = startHeartbeat(queueWorkers);
 
 let stopping = false;
 const shutdown = (signal: NodeJS.Signals) => {
@@ -26,6 +28,7 @@ const shutdown = (signal: NodeJS.Signals) => {
 	if (stopping) return;
 	stopping = true;
 	logger.info({ signal }, 'Shutting down');
+	heartbeat.stop();
 	void Promise.allSettled([
 		...queueWorkers.map((worker) => worker.close()),
 		...running

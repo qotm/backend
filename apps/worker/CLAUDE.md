@@ -40,6 +40,9 @@ backend root, and the image is built from there too
 - `src/workers/`: one directory per queue consumer, names in `constants.ts`,
   re-exported from `index.ts`.
 - `src/utils/worker.ts`: `createWorker`, the only way to build a consumer.
+- `src/utils/heartbeat.ts`: every 15s, a Redis key (60s expiry) saying the
+  process is alive and when each queue last finished a job; the API's
+  `/health/queues` reads it. A worker added to `index.ts`'s list is covered.
 - `src/db.ts`: `DB.instance`, the Prisma client (`DB.instance.$` adds
   `exists`, `paginate`).
 - `src/utils/browser.ts`: `launchBrowser()` for headless Chromium.

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/terminus';
 import { HealthController } from 'common/controllers/health.controller';
 import { PrismaHealthIndicator } from 'common/misc/prisma.indicator';
+import { QueuesHealthIndicator } from 'common/misc/queues.indicator';
 import { CustomConfigService } from 'common/services';
 
 describe('HealthController', () => {
@@ -17,6 +18,7 @@ describe('HealthController', () => {
 	let disk: Mocked<DiskHealthIndicator>;
 	let memory: Mocked<MemoryHealthIndicator>;
 	let config: Mocked<CustomConfigService>;
+	let queues: Mocked<QueuesHealthIndicator>;
 
 	beforeAll(async () => {
 		const { unit, unitRef } =
@@ -28,6 +30,7 @@ describe('HealthController', () => {
 		disk = unitRef.get(DiskHealthIndicator);
 		memory = unitRef.get(MemoryHealthIndicator);
 		config = unitRef.get(CustomConfigService);
+		queues = unitRef.get(QueuesHealthIndicator);
 	});
 
 	it('should be defined', () => {
@@ -68,5 +71,14 @@ describe('HealthController', () => {
 			path: '/data'
 		});
 		expect(result).toEqual({ status: 'ok' });
+	});
+
+	it('checks the worker and queues on /health/queues', async () => {
+		const checks = [async () => ({ worker: { status: 'up' as const } })];
+		queues.checks.mockReturnValue(checks);
+		health.check.mockResolvedValue({ status: 'ok' } as any);
+
+		await expect(controller.queuesCheck()).resolves.toEqual({ status: 'ok' });
+		expect(health.check).toHaveBeenLastCalledWith(checks);
 	});
 });

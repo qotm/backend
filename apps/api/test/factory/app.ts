@@ -77,6 +77,14 @@ export class AppFactory {
 	}
 
 	static async init() {
+		// refresh() truncates the database. Run outside `yarn test:e2e` (a bare
+		// `vitest run` starts this project too), .env is loaded instead of
+		// .env.test and the database it would wipe is development's.
+		if (process.env.APP_ENV !== 'test') {
+			throw new Error(
+				`e2e refuses APP_ENV=${process.env.APP_ENV ?? '(unset)'}: run it with yarn test:e2e (.env.test)`
+			);
+		}
 		// No-op MailService so nothing is enqueued to the BullMQ `mail` queue.
 		// cache.truncate() (Redis flushall) runs between specs and would wipe
 		// in-flight job keys, making the worker throw "Missing key for job N".
